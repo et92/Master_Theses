@@ -349,7 +349,7 @@ class L3Switch(app_manager.RyuApp):
                 self.flood_arp(datapath, dst_ip, in_port,src_mac,src_ip,msg)
                 return
            
-
+        """
     	# switch s1
         if datapath.id == 1:
             #add the return flow for h1 in h4.  
@@ -432,7 +432,7 @@ class L3Switch(app_manager.RyuApp):
             print("S6\nS6\nS6")
             
         else:
-            print ("Hiii there noopp sws")
+            print ("Hiii there noopp sws")"""
     
     def flood_arp(self, datapath, dst_ip, in_port,src_mac, src_ip, msg):
         dpid = datapath.id
