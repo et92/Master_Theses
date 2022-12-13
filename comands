@@ -7,3 +7,15 @@ sudo sysctl net.ipv4.ip_forward=1
 sudo python tp_mob.py
 ryu-manager L2.py --ofp-tcp-listen-port 6633
 ryu-manager L3.py --ofp-tcp-listen-port 6655
+
+
+tcp
+iperf –s –i1
+iperf –c 192.168.1.10 –i1 –t60
+
+udp
+
+iperf –s –i1 -u
+iperf –c 192.168.1.40 –i1 –t60 –u –b 100M
+
+sta6 iw dev sta6-wlan0 scan | grep ssid

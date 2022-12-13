@@ -4,7 +4,7 @@ from mn_wifi.net import Mininet_wifi
 from mininet.node import RemoteController
 from mininet.node import OVSSwitch
 #from mn_wifi.cli import CLI_wifi
-from mininet.cli import CLI
+from mn_wifi.cli import CLI
 from mininet.log import setLogLevel, info
 from mininet.link import TCLink
 from subprocess import call
@@ -61,16 +61,18 @@ def Topology(args):
     h5 = net.addHost('h5', ip='192.168.5.10/24', mac = '00:00:00:00:00:05', defaultRoute='via 192.168.5.254')
 
     info('*** stations/\n')
-    sta6= net.addStation ('sta6',ip ='192.168.11.11/24', mac ='00:00:00:00:00:06', defaultRoute='via 192.168.11.254')
+    sta6= net.addStation ('sta6',ip ='192.168.11.11/24', wlans=3, mac ='00:00:00:00:00:06', defaultRoute='via 192.168.11.254')
 
 
     info('*** Add AcessPoints/\n')
 
-    ap1 = net.addAccessPoint('ap1', ssid='ssid-ap1', ip='192.168.11.1/24', mac ='00:00:00:00:00:07', mode='g', channel='1',
+    ap1 = net.addAccessPoint('ap1', ssid='ssid-ap1', ip='192.168.11.1/24', mac ='00:00:00:00:00:07', cls= OVSKernelAP, datapath='user', mode='g', channel='1',
                                  failMode="standalone", position='20,60,0', defaultRoute='via 192.168.11.254', range= 35)
-    ap2 = net.addAccessPoint('ap2', ssid='ssid-ap2', ip='192.168.11.2/24', mac ='00:00:00:00:00:08', mode='g', channel='1',
+
+    ap2 = net.addAccessPoint('ap2', ssid='ssid-ap2', ip='192.168.11.2/24', mac ='00:00:00:00:00:08', cls= OVSKernelAP, datapath='user', mode='g', channel='1',
                                  failMode="standalone", position='100,60,0', defaultRoute='via 192.168.11.254', range= 35)
-    ap3 = net.addAccessPoint('ap3', ssid='ssid-ap3', ip='192.168.20.253/24', mac ='00:00:00:00:00:09', mode='g', channel='1',
+
+    ap3 = net.addAccessPoint('ap3', ssid='ssid-ap3', ip='192.168.20.253/24', mac ='00:00:00:00:00:09', cls= OVSKernelAP, datapath='user', mode='g', channel='1',
                                  failMode="standalone", position='175,60,0', defaultRoute='via 192.168.20.254', range= 35)
     #ap4 = net.addAccessPoint('ap4', ssid='ssid-ap4', ip='192.168.4.114/24', mac ='00:00:00:00:14:24', mode='g', channel='1',
                                  #failMode="standalone", position='100,50,0', defaultRoute='via 192.168.4.1', range=45)
@@ -97,9 +99,9 @@ def Topology(args):
     net.addLink(s4, s5,3,2)
     net.addLink(s5, h5,5,1)
 
-    net.addLink(s6,ap1,2,1)
-    net.addLink(s6,ap2,3,1)
-    net.addLink(s2,ap3,5,2)
+    net.addLink(s6,ap1,3,1)
+    net.addLink(s6,ap2,2,1)
+    net.addLink(s2,ap3,5,1)
 
 
     if '-p' not in args:
@@ -136,7 +138,7 @@ def Topology(args):
     s2.setMAC('20:00:00:00:02:30', 's2-eth3')
     s2.setMAC('20:00:00:00:02:40', 's2-eth4')
     s2.setMAC('20:00:00:00:02:50', 's2-eth5')
-    ap3.setMAC('20:00:00:00:02:60', 'ap3-eth2')
+    ap3.setMAC('20:00:00:00:02:60', 'ap3-eth1')
 
 
     s3.setMAC('30:00:00:00:03:10', 's3-eth1')
@@ -203,13 +205,13 @@ def Topology(args):
     s2.cmd("ifconfig s2-eth3 0")
     s2.cmd("ifconfig s2-eth4 0")
     s2.cmd("ifconfig s2-eth5 0")
-    ap3.cmd("ifconfig ap3-eth2 0")
+    ap3.cmd("ifconfig ap3-eth1 0")
     s2.cmd("ip addr add 10.0.0.2/24 brd + dev s2-eth1")
     s2.cmd("ip addr add 192.168.2.254/24 brd + dev s2-eth2")
     s2.cmd("ip addr add 10.0.6.1/24 brd + dev s2-eth3")
     s2.cmd("ip addr add 10.0.2.1/24 brd + dev s2-eth4")
     s2.cmd("ip addr add 192.168.20.254/24 brd + dev s2-eth5")
-    ap3.cmd("ip addr add 192.168.20.253/24 brd + dev ap3-eth2")
+    ap3.cmd("ip addr add 192.168.20.253/24 brd + dev ap3-eth1")
     #s2.cmd("echo 1 > /proc/sys/net/ipv4/ip_forward")
     
 
@@ -248,15 +250,20 @@ def Topology(args):
     #s6.cmd("ifconfig s6-eth1 0")
     #s6.cmd("ifconfig s6-eth2 0")
     #s6.cmd("ifconfig s6-eth3 0")
-    #ap1.cmd("ifconfig ap1-eth1 0")
-    #ap2.cmd("ifconfig ap2-eth1 0")
+    ap1.cmd("ifconfig ap1-eth1 0")
+    ap2.cmd("ifconfig ap2-eth1 0")
     #s6.cmd("ip addr add 192.168.10.253/24 brd + dev s6-eth1")
     #s6.cmd("ip addr add 192.168.11.253/24 brd + dev s6-eth2")
     #s6.cmd("ip addr add 192.168.11.254/24 brd + dev s6-eth3")
-    #ap1.cmd("ip addr add 192.168.1.11/24 brd + dev ap1-eth1")
-    #ap2.cmd("ip addr add 192.168.1.12/24 brd + dev ap2-eth1")
+    ap1.cmd("ip addr add 192.168.11.1/24 brd + dev ap1-eth1")
+    ap2.cmd("ip addr add 192.168.11.2/24 brd + dev ap2-eth1")
     #s6.cmd("echo 1 > /proc/sys/net/ipv4/ip_forward")
 
+    #sta6.cmd('iw dev %s interface add mon0 type monitor' % sta6.params['wlan'][0])
+    #sta6.cmd('ifconfig mon0 up')
+    #sta6.cmd('wireshark -i mon0 &')
+    #sta6.cmd('iw dev %s connect %s %s' % (sta6.params['wlan'][0], ap1.params['ssid'][1], ap1.params['mac'][1]))
+    #sta2.cmd('iw dev %s connect %s %s' % (sta2.params['wlan'][0], ap1.params['ssid'][2], ap1.params['mac'][2]))
 
     CLI(net) # Start command line
     net.stop() # Stop Network
@@ -266,9 +273,7 @@ if __name__ == '__main__':
     Topology(sys.argv)
 
     
-        # sta11.cmd('iw dev %s interface add mon0 type monitor' % sta11.params['wlan'][0])
-        # sta11.cmd('ifconfig mon0 up')
-        # sta11.cmd('wireshark -i mon0 &')
+        # 
 
         #ap1.cmd('ovs-ofctl add-flow "ap1" in_port=1,actions=normal')
         #ap1.cmd('ovs-ofctl add-flow "ap1" in_port=2,actions=normal')
