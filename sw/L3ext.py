@@ -43,13 +43,49 @@ interface_port_to_ip = {1: {1: '10.0.0.1', 2: '192.168.1.254', 3: '10.0.3.1', 4:
                         5: {1: '10.0.5.1', 2: '10.0.4.2', 3: '10.0.2.2', 4: '10.0.1.2', 5: '192.168.5.254'}
                         #6: {1: '192.168.10.253', 2: '192.168.11.253', 3: '192.168.11.254'}
                         }
-alternative_paths = {1: {2: '192.168.1.254',5: '192.168.11.254'}, 
-                        2: {2: '192.168.2.254', 5: '192.168.20.254'},
-                        3: {2: '192.168.3.254'},
-                        4: {2: '192.168.4.254'},
-                        5: {5: '192.168.5.254'}
-                        #6: {3: '192.168.11.11'}
-                        }
+
+
+lista_sw_id ={
+            1: (('192.168.1.10', 2, '192.168.4.10', 3, 1), ('192.168.1.10', 2, '192.168.4.10', 3, 1),
+                ('192.168.1.10', 2, '192.168.5.10', 3, 1), ('192.168.5.10', 3, '192.168.1.10', 2, 1),
+                ('192.168.1.10', 2, '192.168.3.10', 3, 1), ('192.168.3.10', 3, '192.168.1.10', 2, 1),
+                ('192.168.1.10', 2, '192.168.2.10', 1, 1), ('192.168.2.10', 1, '192.168.1.10', 2, 1),
+                ('192.168.11.11',5, '192.168.4.10', 1, 1), ('192.168.11.11', 5, '192.168.4.10',1, 1),
+                ('192.168.4.10',1, '192.168.11.11', 5, 3), ('192.168.11.11', 5, '192.168.4.10',1, 3)),
+
+            2: (('192.168.1.10', 4, '192.168.4.10', 3, 1), ('192.168.4.10', 3, '192.168.1.10', 4, 1),
+                ('192.168.11.11',1, '192.168.4.10', 3, 1), ('192.168.4.10', 3, '192.168.11.11',1, 1)),
+
+            3: (('192.168.1.10', 1, '192.168.4.10', 3, 1), ('192.168.4.10', 3, '192.168.1.10', 1, 1),
+                ('192.168.1.10', 3, '192.168.3.10', 2, 1), ('192.168.3.10', 2, '192.168.1.10', 3, 1),
+                ('192.168.1.10', 1, '192.168.2.10', 3, 1), ('192.168.2.10', 3, '192.168.1.10', 1, 1),
+                ('192.168.11.11',1, '192.168.4.10', 3, 1), ('192.168.4.10', 3, '192.168.11.11',1, 1),
+                ('192.168.1.10', 1, '192.168.5.10', 3, 1), ('192.168.5.10', 3, '192.168.1.10', 1, 1)),
+
+            4: (('192.168.4.10', 2, '192.168.1.10', 1, 1), ('192.168.4.10', 2, '192.168.1.10', 1, 1),
+                ('192.168.4.10', 2, '192.168.11.11',1, 1), ('192.168.4.10', 2, '192.168.11.11',1, 1)),
+
+            5: (('192.168.1.10', 1, '192.168.4.10', 3, 1), ('192.168.4.10', 3, '192.168.1.10', 1, 1),
+                ('192.168.1.10', 4, '192.168.3.10', 1, 1), ('192.168.3.10', 1, '192.168.1.10', 4, 1),
+                ('192.168.1.10', 1, '192.168.2.10', 3, 1), ('192.168.2.10', 3, '192.168.1.10', 1, 1),
+                ('192.168.11.11',4, '192.168.4.10', 2, 1), ('192.168.4.10', 2, '192.168.11.11',4, 1)),
+
+            }
+
+            
+
+lista_sw = {(1, '192.168.1.10',2, '192.168.4.10') : (3,1),
+            (2, '192.168.1.10',4, '192.168.4.10') : (3,1),
+            (3, '192.168.1.10',1, '192.168.4.10') : (3,1),
+            (4, '192.168.1.10',3, '192.168.4.10') : (2,1),
+            (5, '192.168.1.10',1, '192.168.4.10') : (2,1)}
+
+#lista_sw = [(1, '192.168.1.10',2, '192.168.4.10', : (3,1)), (2, '192.168.1.10',4, '192.168.4.10', : (3,1))]
+#varialvel_sistema  = dict(lista_sw)
+
+
+
+
 mask = '255.255.255.0' #mask = /24 to all the networks in the topology...
 
 
@@ -74,7 +110,7 @@ class L3Switch(app_manager.RyuApp):
         self.cookies = {}
         self.cookie_value = 1
         self.prio = 1000
-        self.net=nx.DiGraph()
+        #self.net=nx.DiGraph()
        
     # Handy function that lists all attributes in the given object
     def ls(self,obj):
@@ -111,288 +147,30 @@ class L3Switch(app_manager.RyuApp):
         actions = []
         self.add_flow(datapath, 1, match, actions)
         self.send_port_desc_stats_request(datapath)
-        
-        
-       
-    # This defination creates a match, action and adds flow to switch
-        
-    # switch s1
-        if datapath.id == 1:
 
-            #add the return flow for h1 in h4.  
-            # h1 is connected to port 2.
-        
-            match = parser.OFPMatch(in_port=2, eth_type=0x0800, ipv4_src="192.168.1.10", ipv4_dst="192.168.4.10")
-            actions = [parser.OFPActionOutput(3)]
-            self.add_flow(datapath, 2, match, actions)
-            
-            #match = parser.OFPMatch(in_port=3, eth_type=0x0800, ipv4_src="192.168.4.10", ipv4_dst="192.168.1.10")
-            #actions = [parser.OFPActionOutput(2)]
-            #self.add_flow(datapath, 2, match, actions)
-            
-            print("S1\nS1\nS1")
-
-        # switch s2
-        
-        elif datapath.id == 2:
-
-
-            #add the return flow for h1 in s2.  
-            # h1 is connected to port 2.
-            match = parser.OFPMatch(in_port=4, eth_type=0x0800, ipv4_src="192.168.1.10", ipv4_dst="192.168.4.10")
-            actions = [parser.OFPActionOutput(3)]
-            self.add_flow(datapath, 2, match, actions)
-
-            match = parser.OFPMatch(in_port=3, eth_type=0x0800,ipv4_src="192.168.4.10", ipv4_dst="192.168.1.10")
-            actions = [parser.OFPActionOutput(4)]
-            self.add_flow(datapath, 2, match, actions)
-            self.inject_best_paths(datapath)
-            
-            print("S2\nS2\nS2")
-
-        # switch s3
-        elif datapath.id == 3:
-            # h1 is connected to port 3.
-            match = parser.OFPMatch(in_port=1, eth_type=0x0800, ipv4_src="192.168.1.10", ipv4_dst="192.168.4.10")
-            actions = [parser.OFPActionOutput(3)]
-            self.add_flow(datapath, 2, match, actions)
-
-            match = parser.OFPMatch(in_port=3, eth_type=0x0800, ipv4_src="192.168.4.10", ipv4_dst="192.168.1.10")
-            actions = [parser.OFPActionOutput(1)]
-            self.add_flow(datapath, 2, match, actions)
-            self.inject_best_paths(datapath)
-            
-            print("S3\nS3\nS3")
-        
-        # switch s4
-        elif datapath.id == 4:
-            # h1 is connected to port 3.
-            #match = parser.OFPMatch(in_port=3, eth_type=0x0800, ipv4_src="192.168.1.10", ipv4_dst="192.168.4.10")
-            #actions = [parser.OFPActionOutput(2)]
-            #self.add_flow(datapath, 2, match, actions)
-
-            match = parser.OFPMatch(in_port=2, eth_type=0x0800,ipv4_src="192.168.4.10", ipv4_dst="192.168.1.10")
-            actions = [parser.OFPActionOutput(3)]
-            self.add_flow(datapath, 2, match, actions)
-            self.inject_best_paths(datapath)
-            
-            print("S4\nS4\nS4")
-
-        # switch s5
-        elif datapath.id == 5:
-            # h1 is connected to port 3.
-            match = parser.OFPMatch(in_port=1, eth_type=0x0800,ipv4_src="192.168.1.10", ipv4_dst="192.168.4.10")
-            actions = [parser.OFPActionOutput(2)]
-            self.add_flow(datapath, 2, match, actions)
-
-            match = parser.OFPMatch(in_port=2, eth_type=0x0800,ipv4_src="192.168.4.10", ipv4_dst="192.168.1.10")
-            actions = [parser.OFPActionOutput(1)]
-            self.add_flow(datapath, 2, match, actions)
-            self.inject_best_paths(datapath)
-            print("S5\nS5\nS5")
-        
-            
-        else:
-            print ("VIVA PORTUGAL\nVIVAAAAAAAAAAAAAAA!!!")
-
-        #####################################################round2###########################################
-        # switch s1
-        if datapath.id == 1:
-
-            #add the return flow for h1 in h4.  
-            # h1 is connected to port 2.
-        
-            match = parser.OFPMatch(in_port=2, eth_type=0x0800, ipv4_src="192.168.1.10", ipv4_dst="192.168.2.10")
-            actions = [parser.OFPActionOutput(3)]
-            self.add_flow(datapath, 2, match, actions)
-            self.inject_best_paths(datapath)
     
-            #match = parser.OFPMatch(in_port=3, eth_type=0x0800, ipv4_src="192.168.2.10", ipv4_dst="192.168.1.10")
-            #actions = [parser.OFPActionOutput(2)]
-            #self.add_flow(datapath, 2, match, actions)
-            
-            print("S1\nS1\nS1")
 
-        # switch s2
-        
-        elif datapath.id == 2:
+        sw = datapath.id
+        if sw in lista_sw_id:
+            route = lista_sw_id[sw]
+            print("Chave (sw_id): ", sw)
+            print("Valor (tuple de tuples): ", route)
+            print(" ---> Numero de rotas: ", len(route))
+            # imprime a lista
+            for r in route:
+                print("      TUPLE")
+                print("      =====")
+                print("      IP origem: ", r[0])
+                print("      Porta entrada: ", r[1])
+                print("      IP destino: ", r[2])
+                print("      Porta saida: ", r[3])
+                print("      Prioridade: ", r[4])
 
-
-            #add the return flow for h1 in s2.  
-            # h1 is connected to port 2.
-            #match = parser.OFPMatch(in_port=4, eth_type=0x0800, ipv4_src="192.168.1.10", ipv4_dst="192.168.2.10")
-            #actions = [parser.OFPActionOutput(2)]
-            #self.add_flow(datapath, 2, match, actions)
-
-            match = parser.OFPMatch(in_port=2, eth_type=0x0800,ipv4_src="192.168.2.10", ipv4_dst="192.168.1.10")
-            actions = [parser.OFPActionOutput(4)]
-            self.add_flow(datapath, 2, match, actions)
-            self.inject_best_paths(datapath)
-            
-            print("S2\nS2\nS2")
-
-        # switch s3
-        elif datapath.id == 3:
-            # h1 is connected to port 3.
-            match = parser.OFPMatch(in_port=1, eth_type=0x0800, ipv4_src="192.168.1.10", ipv4_dst="192.168.2.10")
-            actions = [parser.OFPActionOutput(3)]
-            self.add_flow(datapath, 2, match, actions)
-
-            match = parser.OFPMatch(in_port=3, eth_type=0x0800, ipv4_src="192.168.2.10", ipv4_dst="192.168.1.10")
-            actions = [parser.OFPActionOutput(1)]
-            self.add_flow(datapath, 2, match, actions)
-            self.inject_best_paths(datapath)
-            
-            print("S3\nS3\nS3")
-        
-        # switch s4
-        elif datapath.id == 4:
-            # h1 is connected to port 3.
-            match = parser.OFPMatch(in_port=3, eth_type=0x0800, ipv4_src="192.168.1.10", ipv4_dst="192.168.2.10")
-            actions = [parser.OFPActionOutput(1)]
-            self.add_flow(datapath, 2, match, actions)
-
-            match = parser.OFPMatch(in_port=1, eth_type=0x0800,ipv4_src="192.168.2.10", ipv4_dst="192.168.1.10")
-            actions = [parser.OFPActionOutput(3)]
-            self.add_flow(datapath, 2, match, actions)
-            self.inject_best_paths(datapath)
-            print("S4\nS4\nS4")
-
-        # switch s5
-        elif datapath.id == 5:
-            # h1 is connected to port 3.
-            match = parser.OFPMatch(in_port=1, eth_type=0x0800,ipv4_src="192.168.1.10", ipv4_dst="192.168.2.10")
-            actions = [parser.OFPActionOutput(2)]
-            self.add_flow(datapath, 2, match, actions)
-
-            match = parser.OFPMatch(in_port=2, eth_type=0x0800,ipv4_src="192.168.2.10", ipv4_dst="192.168.1.10")
-            actions = [parser.OFPActionOutput(1)]
-            self.add_flow(datapath, 2, match, actions)
-            self.inject_best_paths(datapath)
-            print("S5\nS5\nS5")
-            
-        else:
-            print ("VIVA PORTUGAL\nVIVAAAAAAAAAAAAAAA!!!")
-
-        
-        '''# switch s6
-        if datapath.id == 6:
-            # h1 is connected to port 3.
-            match = parser.OFPMatch(in_port=3, eth_type=0x0800,ipv4_src="192.168.11.11", ipv4_dst="192.168.4.10")
-            actions = [parser.OFPActionOutput(1)]
-            self.add_flow(datapath, 2, match, actions)
-
-            match = parser.OFPMatch(in_port=1, eth_type=0x0800,ipv4_src="192.168.4.10", ipv4_dst="192.168.11.11")
-            actions = [parser.OFPActionOutput(3)]
-            self.add_flow(datapath, 2, match, actions)
-            self.inject_best_paths(datapath)
-            print("S6\nS6\nS6")'''
-        
-            #####################################################round3###########################################
-
-        # switch s1
-        if datapath.id == 1:
-
-            # for n in range(1, len(alternative_paths) - 1):
-            #     node, out_port = alternative_paths[n]
-
-            # datapath = self.dpids[node]
-            # parser = datapath.ofproto_parser
-            # match = parser.OFPMatch(eth_dst=alternative_paths[-1], eth_src=alternative_paths[0])
-            # actions = [parser.OFPActionOutput(out_port)]
-
-            #add the return flow for h1 in h4.  
-            # h1 is connected to port 2.
-        
-            match = parser.OFPMatch(in_port=5, eth_type=0x0800, ipv4_src="192.168.11.11", ipv4_dst="192.168.4.10")
-            actions = [parser.OFPActionOutput(1)]
-            self.add_flow(datapath, 2, match, actions)
-     
-            match = parser.OFPMatch(in_port=1, eth_type=0x0800, ipv4_src="192.168.4.10", ipv4_dst="192.168.11.11")
-            actions = [parser.OFPActionOutput(5)]
-            self.add_flow(datapath, 2, match, actions)
-            self.inject_best_paths(datapath)
-            print("S1\nS1\nS1")
-
-        # switch s2
-        
-        elif datapath.id == 2:
-
-            #add the return flow for h1 in s2.  
-            # h1 is connected to port 2.
-            match = parser.OFPMatch(in_port=4, eth_type=0x0800, ipv4_src="192.168.11.11", ipv4_dst="192.168.4.10")
-            actions = [parser.OFPActionOutput(3)]
-            self.add_flow(datapath, 2, match, actions)
-
-            match = parser.OFPMatch(in_port=3, eth_type=0x0800,ipv4_src="192.168.4.10", ipv4_dst="192.168.11.11")
-            actions = [parser.OFPActionOutput(4)]
-            self.add_flow(datapath, 2, match, actions)
-            self.inject_best_paths(datapath)
-            
-            print("S2\nS2\nS2")
-
-        # switch s3
-        elif datapath.id == 3:
-            # h1 is connected to port 3.
-            match = parser.OFPMatch(in_port=1, eth_type=0x0800, ipv4_src="192.168.11.11", ipv4_dst="192.168.4.10")
-            actions = [parser.OFPActionOutput(3)]
-            self.add_flow(datapath, 2, match, actions)
-
-            match = parser.OFPMatch(in_port=3, eth_type=0x0800, ipv4_src="192.168.4.10", ipv4_dst="192.168.11.11")
-            actions = [parser.OFPActionOutput(1)]
-            self.add_flow(datapath, 2, match, actions)
-            self.inject_best_paths(datapath)
-            
-            print("S3\nS3\nS3")
-        
-        # switch s4
-        elif datapath.id == 4:
-            # h1 is connected to port 3.
-            match = parser.OFPMatch(in_port=1, eth_type=0x0800, ipv4_src="192.168.11.11", ipv4_dst="192.168.4.10")
-            actions = [parser.OFPActionOutput(2)]
-            self.add_flow(datapath, 2, match, actions)
-            self.inject_best_paths(datapath)
-
-            
-            """ match = parser.OFPMatch(in_port=2, eth_type=0x0800,ipv4_src="192.168.4.10", ipv4_dst="192.168.11.11")
-            actions = [parser.OFPActionOutput(1)]
-            self.add_flow(datapath, 2, match, actions)
-            self.inject_best_paths(datapath) """
-            print("S4\nS4\nS4")
-
-        # switch s5
-        elif datapath.id == 5:
-            # h1 is connected to port 3.
-            match = parser.OFPMatch(in_port=1, eth_type=0x0800,ipv4_src="192.168.11.11", ipv4_dst="192.168.4.10")
-            actions = [parser.OFPActionOutput(2)]
-            self.add_flow(datapath, 2, match, actions)
-
-            match = parser.OFPMatch(in_port=2, eth_type=0x0800,ipv4_src="192.168.4.10", ipv4_dst="192.168.11.11")
-            actions = [parser.OFPActionOutput(1)]
-            self.add_flow(datapath, 2, match, actions)
-            self.inject_best_paths(datapath)
-            print("S5\nS5\nS5")
-
-            '''
-        # switch s6
-        elif datapath.id == 6:
-            # h1 is connected to port 3.
-            match = parser.OFPMatch(in_port=3, eth_type=0x0800,ipv4_src="192.168.11.11", ipv4_dst="192.168.4.10")
-            actions = [parser.OFPActionOutput(1)]
-            self.add_flow(datapath, 2, match, actions)
-
-            match = parser.OFPMatch(in_port=1, eth_type=0x0800,ipv4_src="192.168.4.10", ipv4_dst="192.168.11.11")
-            actions = [parser.OFPActionOutput(3)]
-            self.add_flow(datapath, 2, match, actions)
-            self.inject_best_paths(datapath)
-            print("S6\nS6\nS6")'''
-            
-        else:
-            print ("VIVA PORTUGAL\nVIVAAAAAAAAAAAAAAA!!!")
-
-        #####################################################round4###########################################
-
-
+                match = parser.OFPMatch(in_port=r[1], eth_type=0x0800, ipv4_src=r[0], ipv4_dst=r[2])
+                actions = [parser.OFPActionOutput(r[3])]
+                self.add_flow(datapath, r[4], match, actions)
+    # This defination creates a match, action and adds flow to switch
+   
     # Simple function used to convert hexadecimal numbers to integer strings,
     # used by the application mainly for parsing datapath ids and port numbers
     def to_dec(hex):
