@@ -1,3 +1,4 @@
+https://www.configserverfirewall.com/ubuntu-linux/ubuntu-network-manager/
 https://pt.overleaf.com/project/61f440886560f32b4d99d511
 
 sudo ovs-ofctl -O openflow13 dump-flows s1

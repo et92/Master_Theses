@@ -10,12 +10,11 @@ from mininet.link import TCLink
 from subprocess import call
 from mn_wifi.associationControl import AssociationControl
 from mn_wifi.link import wmediumd
+from mn_wifi.link import adhoc
 from mn_wifi.net import Mininet_wifi
-from mn_wifi.node import OVSKernelAP
+from mn_wifi.node import OVSKernelAP, UserAP
 from mn_wifi.wmediumdConnector import interference
 #from mn_wifi.propagationModels import propagationModel
-
-
 
 import threading
 import time
@@ -25,7 +24,7 @@ def Topology(args):
     info("Creating nodes...")
     #info('Net A -> 192.168.1.0/24\nNet B -> 192.168.2.0/24\nNet C -> 192.168.3.0/24\n')
 
-    net = Mininet_wifi( controller=RemoteController, switch=OVSSwitch,link=wmediumd, accessPoint =OVSSwitch)
+    net = Mininet_wifi( controller=RemoteController, switch=OVSSwitch,link=wmediumd)
     #net = Mininet_wifi(switch=OVSKernelSwitch, waitConnected=True)
 
     info('Defining remote controller on port 6633 (L2 switches)\n')
@@ -43,45 +42,67 @@ def Topology(args):
                         port=6655) #L3
 
     info('Adding L3 switch\n')
-    s1 = net.addSwitch('s1', cls=OVSSwitch, dpid='0000000000000001')  # L3 switch
-    s2 = net.addSwitch('s2', cls=OVSSwitch, dpid='0000000000000002')  # L3 switch
-    s3 = net.addSwitch('s3', cls=OVSSwitch, dpid='0000000000000003')  # L3 switch
-    s4 = net.addSwitch('s4', cls=OVSSwitch, dpid='0000000000000004')  # L3 switch
-    s5 = net.addSwitch('s5', cls=OVSSwitch, dpid='0000000000000005')  # L3 switch
-    info('Adding L2 switches\n')
-    s6 = net.addSwitch('s6', cls=OVSSwitch, dpid='0000000000000006') # L2 Switch Net B (no ip)
-    #s7 = net.addSwitch('s2', cls=OVSSwitch, dpid='0000000000000007') # L2 Switch Net C (no ip)
-    
+    s1 = net.addSwitch('s1', cls=OVSSwitch, dpid='0000000000000001', protocols ='OpenFlow13')  # L3 switch
+    s2 = net.addSwitch('s2', cls=OVSSwitch, dpid='0000000000000002', protocols ='OpenFlow13')  # L3 switch
+    s3 = net.addSwitch('s3', cls=OVSSwitch, dpid='0000000000000003', protocols ='OpenFlow13')  # L3 switch
+    s4 = net.addSwitch('s4', cls=OVSSwitch, dpid='0000000000000004', protocols ='OpenFlow13')  # L3 switch
+    s5 = net.addSwitch('s5', cls=OVSSwitch, dpid='0000000000000005', protocols ='OpenFlow13')  # L3 switch
 
+    info('Adding L2 switches\n')
+    s6 = net.addSwitch('s6', cls=OVSSwitch, dpid='0000000000000006', protocols ='OpenFlow13') # L2 Switch Net B (no ip)
+    
     info('*** Add hosts/\n')
     h1 = net.addHost('h1', ip='192.168.1.10/24', mac = '00:00:00:00:00:01', defaultRoute='via 192.168.1.254')
     h2 = net.addHost('h2', ip='192.168.2.10/24', mac = '00:00:00:00:00:02', defaultRoute='via 192.168.2.254')
     h3 = net.addHost('h3', ip='192.168.3.10/24', mac = '00:00:00:00:00:03', defaultRoute='via 192.168.3.254')
     h4 = net.addHost('h4', ip='192.168.4.10/24', mac = '00:00:00:00:00:04', defaultRoute='via 192.168.4.254')
     h5 = net.addHost('h5', ip='192.168.5.10/24', mac = '00:00:00:00:00:05', defaultRoute='via 192.168.5.254')
-
     info('*** stations/\n')
-    sta6= net.addStation ('sta6',ip ='192.168.11.11/24', wlans=3, mac ='00:00:00:00:00:06', defaultRoute='via 192.168.11.254')
-
-
+    sta6= net.addStation ('sta6', ip='192.168.11.11/24', mac ='00:00:00:00:00:06', defaultRoute='via 192.168.11.254')
+    #s7 = net.addSwitch('s2', cls=OVSSwitch, dpid='0000000000000007') # L2 Switch Net C (no ip)
     info('*** Add AcessPoints/\n')
 
-    ap1 = net.addAccessPoint('ap1', ssid='ssid-ap1', ip='192.168.11.1/24', mac ='00:00:00:00:00:07', cls= OVSSwitch, datapath='user', mode='g', channel='1',
-                                 failMode="standalone", position='20,60,0', defaultRoute='via 192.168.11.254', range= 35)
+    ap1 = net.addAccessPoint('ap1', ssid='ssid-ap1', mac ='00:00:00:00:00:07', mode='g', channel='1',
+                                 failMode="standalone", position='20,60,0', range= 35)
 
-    ap2 = net.addAccessPoint('ap2', ssid='ssid-ap2', ip='192.168.11.2/24', mac ='00:00:00:00:00:08', cls= OVSSwitch, datapath='user', mode='g', channel='1',
-                                 failMode="standalone", position='100,60,0', defaultRoute='via 192.168.11.254', range= 35)
+    ap2 = net.addAccessPoint('ap2', ssid='ssid-ap2', mac ='00:00:00:00:00:08', mode='g', channel='1',
+                                 failMode="standalone", position='100,60,0', range= 35)
 
-    ap3 = net.addAccessPoint('ap3', ssid='ssid-ap3', ip='192.168.20.253/24', mac ='00:00:00:00:00:09', cls= OVSSwitch, datapath='user', mode='g', channel='1',
-                                 failMode="standalone", position='175,60,0', defaultRoute='via 192.168.20.254', range= 35)
+    ap3 = net.addAccessPoint('ap3', ssid='ssid-ap3', mac ='00:00:00:00:00:09', mode='g', channel='1',
+                                 failMode="standalone", position='175,60,0',  range= 35)
     #ap4 = net.addAccessPoint('ap4', ssid='ssid-ap4', ip='192.168.4.114/24', mac ='00:00:00:00:14:24', mode='g', channel='1',
                                  #failMode="standalone", position='100,50,0', defaultRoute='via 192.168.4.1', range=45)
 
+
+   
     #net.setAssociationCtrl(ac='ssf')
     #net.auto_association()
 
     info("*** Configuring wifi nodes\n")
     net.configureWifiNodes()
+
+ 
+    if '-p' not in args:
+                net.plotGraph(max_x=250, max_y=250)
+
+
+    if '-c' in args:
+        sta6.coord = ['20.0,60.0,0.0', '30.0,60.0,0.0', '31.0,30.0,0.0']
+        
+    #net.setMobilityModel(time=0, model='GaussMarkov', max_x=160, max_y=160, seed=20)
+    net.startMobility(time=0, mob_rep=1, reverse=True)
+
+    p1, p2= dict(), dict()
+    if '-c' not in args:
+                p1 = {'position': '20.0,60.0,0.0'}
+                p2 = {'position': '210.0,60.0,0.0'}
+             
+
+    net.mobility(sta6, 'start', time=1, **p1)
+    #net.mobility(sta6, 'stop', time=222, **p2)
+    net.mobility(sta6, 'stop', time=222, **p1)
+    net.stopMobility(time=230)
+
 
     info('*** Associating and Creating Add links\n')
 
@@ -103,27 +124,8 @@ def Topology(args):
     net.addLink(s6,ap2,2,1)
     net.addLink(s2,ap3,5,1)
 
-
-    if '-p' not in args:
-                net.plotGraph(max_x=250, max_y=250)
-        
-    if '-c' in args:
-        sta6.coord = ['10.0,210.0,0.0', '120.0,210.0,0.0', '120.0,210.0,0.0']
-        
-    #net.setMobilityModel(time=0, model='GaussMarkov', max_x=160, max_y=160, seed=20)
-    net.startMobility(time=0, mob_rep=1, reverse=True)
-
-    p1, p2= dict(), dict()
-    if '-c' not in args:
-                p1 = {'position': '10.0,60.0,0.0'}
-                p2 = {'position': '210.0,60.0,0.0'}
-             
-
-    net.mobility(sta6, 'start', time=1, **p1)
-    #net.mobility(sta6, 'stop', time=222, **p2)
-    net.mobility(sta6, 'stop', time=222, **p1)
-    net.stopMobility(time=230)
-
+    #net.addLink(ap1, s1,2,6)
+    #net.addLink(sta6, intf='sta6-wlan0', cls=adhoc, ssid='adhocNet')
 
     info('Setting MAC addresses to switches')
     s1.setMAC('10:00:00:00:01:10', 's1-eth1')
@@ -180,10 +182,13 @@ def Topology(args):
     s4.start([c1])
     s5.start([c1])
     s6.start([])
-    ap1.start([c0])
-    ap2.start([])
-    ap3.start([])
-        
+    ap1.start([c1])
+    ap2.start([c1])
+    ap3.start([c1])
+
+
+
+
 
     info('\nSetting up of IP addresses in the SW\n')
     s1.cmd("ifconfig s1-eth1 0")
@@ -246,6 +251,27 @@ def Topology(args):
     s5.cmd("ip addr add 10.0.2.2/24 brd + dev s5-eth3")
     s5.cmd("ip addr add 10.0.1.2/24 brd + dev s5-eth4")
     s5.cmd("ip addr add 192.168.5.254/24 brd + dev s5-eth5")
+
+    ap1.cmd('echo 1 > /proc/sys/net/ipv4/ip_forward')
+    ap2.cmd('echo 1 > /proc/sys/net/ipv4/ip_forward')
+    ap3.cmd('echo 1 > /proc/sys/net/ipv4/ip_forward')
+
+
+    ap1.setIP('192.168.11.1/24', intf='ap1-wlan1')
+    ap1.setIP('192.168.11.10/24', intf='ap1-eth1')
+    ap2.setIP('192.168.11.2/24', intf='ap2-wlan1')
+    ap2.setIP('192.168.11.20/24', intf='ap2-eth1')
+    ap1.cmd('route add -net 192.168.11.0/24 gw 192.168.11.254')
+    ap2.cmd('route add -net 192.168.11.0/24 gw 192.168.11.254')
+    sta6.cmd('route add -net 192.168.1.0/24 gw 192.168.1.254')
+    sta6.cmd('route add -net 192.168.2.0/24 gw 192.168.1.254')
+    sta6.cmd('route add -net 192.168.4.0/24 gw 192.168.11.254')
+    sta6.cmd('route add -net 192.168.11.0/24 gw 192.168.11.254')
+    #ap1.setIP('192.168.11.1/24')
+    #ap1.setIP('192.168.11.3/24', intf='ap1-eth1')
+    #ap2.setIP('192.168.11.2/24')
+    #ap2.setIP('192.168.11.4/24', intf='ap2-eth1')
+    
     #s5.cmd("echo 1 > /proc/sys/net/ipv4/ip_forward")
 
     #s6.cmd("ifconfig s6-eth1 0")
