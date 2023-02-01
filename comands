@@ -21,3 +21,5 @@ iperf –c 192.168.1.40 –i1 –t60 –u –b 100M
 
 sta6 iw dev sta6-wlan0 scan | grep ssid
 sta6 iw dev sta6-wlan0 link
+sh ifconfig hwsim0 up
+sudo service network-manager stop
