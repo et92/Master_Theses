@@ -25,3 +25,20 @@ sh ifconfig hwsim0 up
 iw dev mov-wlan0 info
 sudo service network-manager stop
 tcpdump -i ap1-eth1 arp
+
+
+
+
+mininet-wifi> py mov.wintfs
+{0: <managed mov-wlan0>}
+mininet-wifi> py mov.wintfs[0].txpower
+14
+mininet-wifi> py mov.wintfs[0].ip
+192.168.11.11
+mininet-wifi> py mov.wintfs[0].antennaGain
+5
+mininet-wifi> py mov.wintfs[0].freq
+2.412
+mininet-wifi> py mov.wintfs[0].mode
+g
+
