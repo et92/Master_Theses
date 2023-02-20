@@ -15,6 +15,7 @@ class SimpleSwitch13(app_manager.RyuApp):
         super(SimpleSwitch13, self).__init__(*args, **kwargs)
         self.switch_table = {}
 
+
     def add_sw_table_entry(self, port, host_addr):
         self.switch_table[int(port)] = host_addr
 
@@ -39,6 +40,8 @@ class SimpleSwitch13(app_manager.RyuApp):
     def add_flow(self, datapath, priority, match, actions, buffer_id=None):
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
+
+        self.logger.info(f"\nSOU O SW {datapath.id} Envio packets!!!!! {actions} {match}\n")
 
         inst = [parser.OFPInstructionActions(ofproto.OFPIT_APPLY_ACTIONS,
                                              actions)]
@@ -121,3 +124,27 @@ class SimpleSwitch13(app_manager.RyuApp):
             datapath=datapath, buffer_id=msg.buffer_id, in_port=msg.match['in_port'],
             actions=actions, data = data)
         datapath.send_msg(out)
+
+
+        # Match packets from the access point's MAC address and send them to the controller
+        match = parser.OFPMatch(eth_dst='60:00:00:00:06:40')
+        actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER, ofproto.OFPCML_NO_BUFFER)]
+        inst = [parser.OFPInstructionActions(ofproto.OFPIT_APPLY_ACTIONS, actions)]
+        mod = parser.OFPFlowMod(datapath=datapath, priority=0, match=match, instructions=inst)
+        datapath.send_msg(mod)
+
+        # Determine if the packet is from the access point
+        if eth.dst == '60:00:00:00:06:40':
+            # Send the packet to the controller for processing
+            actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER, ofproto.OFPCML_NO_BUFFER)]
+            out = parser.OFPPacketOut(datapath=datapath, buffer_id=msg.buffer_id,
+                                      in_port=msg.match['in_port'], actions=actions,
+                                      data=msg.data)
+            datapath.send_msg(out)
+        else:
+            # Forward the packet to its final destination
+            actions = [parser.OFPActionOutput(ofproto.OFPP_NORMAL, ofproto.OFPCML_NO_BUFFER)]
+            out = parser.OFPPacketOut(datapath=datapath, buffer_id=msg.buffer_id,
+                                      in_port=msg.match['in_port'], actions=actions,
+                                      data=msg.data)
+            datapath.send_msg(out)

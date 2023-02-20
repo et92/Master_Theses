@@ -9,7 +9,7 @@ from ryu.ofproto import ofproto_v1_3
 from ryu.lib.packet import packet
 from ryu.lib.packet import ethernet
 from ryu.lib.packet import ether_types
-from ryu.lib.packet import ipv4
+from ryu.lib.packet import ipv4, udp
 from ryu.lib.packet import in_proto
 from ryu.lib.packet import icmp,tcp
 from ryu.lib.packet import arp
@@ -23,6 +23,9 @@ from asyncio.log import logger
 from ipaddress import ip_network
 from ipaddress import ip_interface
 import networkx as nx
+
+from ryu.lib import dpid as dpid_lib
+from ryu.lib import stplib
 
 #from newtwork_graph import NetworkGraph
 
@@ -40,24 +43,27 @@ interface_port_to_ip = {1: {1: '10.0.0.1', 2: '192.168.1.254', 3: '10.0.3.1', 4:
                         2: {1: '10.0.0.2', 2: '192.168.2.254', 3: '10.0.6.1', 4: '10.0.2.1', 5: '192.168.20.254'},
                         3: {1: '10.0.3.2', 2: '192.168.3.254', 3: '10.0.5.2'},
                         4: {1: '10.0.6.2', 2: '192.168.4.254', 3: '10.0.4.1'},
-                        5: {1: '10.0.5.1', 2: '10.0.4.2', 3: '10.0.2.2', 4: '10.0.1.2', 5: '192.168.5.254'}
-                        #6: {1: '192.168.11.253', 2: '192.168.11.22', 3: '192.168.11.23'}
+                        5: {1: '10.0.5.1', 2: '10.0.4.2', 3: '10.0.2.2', 4: '10.0.1.2', 5: '192.168.5.254'},
+                        #6: {1: '192.168.11.253', 2: '192.168.11.221', 3: '192.168.11.231'},
+                        #7: {1: '192.168.11.22'},
+                        #8: {1: '192.168.11.23'},
+                        #9: {1: '192.168.20.253'}
                         }
 
-
+## {DPID:{(('ip_src', port_in, 'ip_dst', port_out, priorite)}
 lista_sw_id ={
             1: (('192.168.1.10', 2, '192.168.4.10', 3, 1), ('192.168.1.10', 2, '192.168.4.10', 3, 1),
                 ('192.168.1.10', 2, '192.168.5.10', 3, 1), ('192.168.5.10', 3, '192.168.1.10', 2, 1),
                 ('192.168.1.10', 2, '192.168.3.10', 3, 1), ('192.168.3.10', 3, '192.168.1.10', 2, 1),
                 ('192.168.1.10', 2, '192.168.2.10', 1, 1), ('192.168.2.10', 1, '192.168.1.10', 2, 1),
-                ('192.168.11.11',5, '192.168.4.10', 1, 1), ('192.168.11.11', 5,'192.168.4.10', 1, 1),
-                ('192.168.11.11',5, '192.168.4.10', 1, 2), ('192.168.4.10', 1,'192.168.11.11', 5, 2),
-                ('192.168.11.254', 5, '192.168.11.11', 5, 2), ('192.168.11.254', 5, '192.168.11.11', 5, 2),
-                ('192.168.11.254', 5, '192.168.4.10', 1, 2), ('192.168.11.254', 5, '192.168.4.10', 1, 2)),
+                #('192.168.11.1',5, '192.168.4.10', 1, 1), ('192.168.11.1', 5,'192.168.4.10', 1, 1),
+                ('192.168.11.11',5, '192.168.4.10', 1, 2), ('192.168.4.10', 1,'192.168.11.11', 5, 2)),
+                #('192.168.11.2', 5, '192.168.4.10', 1, 2), ('192.168.11.2', 5, '192.168.4.10', 1, 2)),
 
-            2: (('192.168.1.10', 4, '192.168.4.10', 3, 1), ('192.168.4.10', 3, '192.168.1.10', 4, 1),
-                ('192.168.11.11',1, '192.168.4.10', 3, 2), ('192.168.4.10', 3, '192.168.11.11',1, 2),
-                ('192.168.11.254', 1, '192.168.4.10', 3, 2), ('192.168.4.10', 3, '192.168.11.254', 1, 2)),
+            2: (('192.168.1.10', 4, '192.168.4.10', 3, 4), ('192.168.4.10', 3, '192.168.1.10', 4, 4),
+                #('192.168.11.1',1, '192.168.4.10', 3, 2), ('192.168.4.10', 3, '192.168.11.1',1, 2),
+                ('192.168.11.11',1, '192.168.4.10', 3, 1), ('192.168.4.10', 3, '192.168.11.11',1, 1)),
+                #('192.168.11.2', 1, '192.168.4.10', 3, 2), ('192.168.4.10', 3, '192.168.11.2', 1, 2)),
 
             3: (('192.168.1.10', 1, '192.168.4.10', 3, 1), ('192.168.4.10', 3, '192.168.1.10', 1, 1),
                 ('192.168.1.10', 3, '192.168.3.10', 2, 1), ('192.168.3.10', 2, '192.168.1.10', 3, 1),
@@ -67,12 +73,20 @@ lista_sw_id ={
     
 
             4: (('192.168.4.10', 2, '192.168.1.10', 1, 1), ('192.168.4.10', 2, '192.168.1.10', 1, 1),
-                ('192.168.4.10', 2, '192.168.11.11',1, 2), ('192.168.11.11', 1, '192.168.4.10',2, 2),
-                ('192.168.4.10', 2, '192.168.11.254', 1, 2), ('192.168.4.254', 2, '192.168.11.254', 1, 2)),
+                #('192.168.4.10', 2, '192.168.11.1',1, 2), ('192.168.11.1', 1, '192.168.4.10',2, 2),
+                #('192.168.4.10', 2, '192.168.11.11',1, 2), ('192.168.11.11', 1, '192.168.4.10',2, 2),
+                ('192.168.4.10', 2, '192.168.11.11',1, 1), ('192.168.11.11', 1, '192.168.4.10',2, 1)),
+                #('192.168.4.10', 2, '192.168.11.2', 1, 2), ('192.168.4.10', 2, '192.168.11.2', 1, 2)),
 
             5: (('192.168.1.10', 1, '192.168.4.10', 2, 1), ('192.168.4.10', 2, '192.168.1.10', 1, 1),
                 ('192.168.1.10', 4, '192.168.3.10', 1, 1), ('192.168.3.10', 1, '192.168.1.10', 4, 1),
-                ('192.168.1.10', 1, '192.168.2.10', 3, 1), ('192.168.2.10', 3, '192.168.1.10', 1, 1))
+                ('192.168.1.10', 1, '192.168.2.10', 3, 1), ('192.168.2.10', 3, '192.168.1.10', 1, 1)),
+
+            
+            #6: (('192.168.11.11', 2, '192.168.4.10', 1, 1), ('192.168.4.10', 1, '192.168.11.11', 2, 1))
+                #('192.168.11.1', 2, '192.168.4.10', 1, 2), ('192.168.4.10', 1, '192.168.11.11',2, 2),
+                #('192.168.11.2', 3, '192.168.4.10', 1, 2), ('192.168.4.10', 1, '192.168.11.2', 3, 2)),  
+
             }
 
 
@@ -85,9 +99,27 @@ mask = '255.255.255.0' #mask = /24 to all the networks in the topology...
 
 class L3Switch(app_manager.RyuApp):
     OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION]
+    #_CONTEXTS = {'stplib': stplib.Stp}
 
     def __init__(self, *args, **kwargs):
         super(L3Switch, self).__init__(*args, **kwargs)
+        
+        '''
+        self.stp = kwargs['stplib']
+        # Sample of stplib config.
+        #  please refer to stplib.Stp.set_config() for details.
+        config = {dpid_lib.str_to_dpid('0000000000000001'):
+                  {'bridge': {'priority': 0x8000}},
+                  dpid_lib.str_to_dpid('0000000000000002'):
+                  {'bridge': {'priority': 0x9000}},
+                  dpid_lib.str_to_dpid('0000000000000003'):
+                  {'bridge': {'priority': 0xa000}},
+                  dpid_lib.str_to_dpid('0000000000000004'):
+                  {'bridge': {'priority': 0xb000}},
+                  dpid_lib.str_to_dpid('0000000000000005'):
+                  {'bridge': {'priority': 0xc000}}}
+        self.stp.set_config(config)'''
+
         self.mac_to_port = {}
         self.ip_to_mac = {}
         #self.hw_addr = {}
@@ -105,14 +137,22 @@ class L3Switch(app_manager.RyuApp):
         self.cookie_value = 1
         self.prio = 1000
         #self.net=nx.DiGraph()
-       
+        #Rotas aprendidas para cada um dos routers
 
-    
-    
+     
+
+    @set_ev_cls(event.EventSwitchEnter)
+    def get_topology_data(self, ev):
+        switch_list = get_switch(self.topology_api_app, None)
+        switches = [switch.dp.id for switch in switch_list]
+        links_list = get_link(self.topology_api_app, None)
+        links = [(link.src.dpid, link.dst.dpid, {'port': link.src.port_no}) for link in links_list]
+        print ("switches ", switches)
+        print ("links ", links) 
     # # Handy function that lists all attributes in the given object
     # def ls(self,obj):
     #     print("\n".join([x for x in dir(obj) if x[0] != "_"]))   
-        
+   
 
     @set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
     def switch_features_handler(self, ev):
@@ -167,7 +207,7 @@ class L3Switch(app_manager.RyuApp):
                 self.add_flow(datapath, r[4], match, actions)
                 self.send_port_desc_stats_request(datapath)
    
-
+        
 
     # Simple function used to convert hexadecimal numbers to integer strings,
     # used by the application mainly for parsing datapath ids and port numbers
@@ -175,22 +215,24 @@ class L3Switch(app_manager.RyuApp):
         return int(hex, 16)
    
 
-    # Function used wrap the FlowMod rule with the ADD command, and then send it to the given datapath.
-    def add_flow(self, datapath, priority, match, actions, buffer_id=None):
+     #Adiciona um flow ao dispositivo
+    def add_flow(self, datapath, priority, match, actions):
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
 
-        inst = [parser.OFPInstructionActions(ofproto.OFPIT_APPLY_ACTIONS,
+        self.logger.info(f"\nSOU O ROUTER {datapath.id} E ESTOU A INSTALAR UM FLOW!!!!! {actions} {match}\n")
+
+        if actions:
+            inst = [parser.OFPInstructionActions(ofproto.OFPIT_APPLY_ACTIONS,
                                              actions)]
-        if buffer_id:
-            mod = parser.OFPFlowMod(datapath=datapath, buffer_id=buffer_id,
-                                    priority=priority, match=match,
-                                    instructions=inst)
         else:
-            mod = parser.OFPFlowMod(datapath=datapath, priority=priority,
-                                    match=match, instructions=inst)
+            inst = actions
+
+        mod = parser.OFPFlowMod(datapath=datapath, priority=priority,
+                                match=match, instructions=inst)
         datapath.send_msg(mod)
-  
+
+    
 
     def add_flow_best_path(self, datapath, priority, match, actions, buffer_id=None):
         ofproto = datapath.ofproto
@@ -250,7 +292,7 @@ class L3Switch(app_manager.RyuApp):
         self.logger.info('%d MAC TABLE: %s', dpid, self.L3_mac_to_port[dpid])
         self.logger.info('%d ARP TABLE: %s', dpid, self.L3_ip_to_mac[dpid])
 
-
+    
 
     @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
     def _packet_in_handler(self, ev):
@@ -296,11 +338,7 @@ class L3Switch(app_manager.RyuApp):
         #dp.ofproto and dp.ofproto_parser are objects that represent the OpenFlow protocol that Ryu and the switch negotiated.
         print("message is is ", msg)
         ethernet_type=eth.ethertype
-        '''
-        print("\nEthernet Packet is ",eth)
-        print("Source Mac address is ",src_mac)
-        print("Destination Mac address is ",dst_mac)
-        print("Switch port number is ",msg.match['in_port'])'''
+        
 
 		
         self.logger.info("packet in %s %s %s %s", dpid, src_mac, dst_mac, in_port)
@@ -314,6 +352,22 @@ class L3Switch(app_manager.RyuApp):
             dst_ip = ip_pkt.dst
             protocol = ip_pkt.proto
 
+        # if ICMP Protocol
+            if protocol == in_proto.IPPROTO_ICMP:
+                match = parser.OFPMatch(eth_type=ether_types.ETH_TYPE_IP, ipv4_src=src_ip, ipv4_dst=dst_ip, ip_proto=protocol)
+            
+            #  if TCP Protocol
+            elif protocol == in_proto.IPPROTO_TCP:
+                t = pkt.get_protocol(tcp.tcp)
+                match = parser.OFPMatch(eth_type=ether_types.ETH_TYPE_IP, ipv4_src=src_ip, ipv4_dst=dst_ip, ip_proto=protocol, tcp_src=t.src_port, tcp_dst=t.dst_port,)
+            
+            #  If UDP Protocol 
+            elif protocol == in_proto.IPPROTO_UDP:
+                u = pkt.get_protocol(udp.udp)
+                match = parser.OFPMatch(eth_type=ether_types.ETH_TYPE_IP, ipv4_src=src_ip, ipv4_dst=dst_ip, ip_proto=protocol, udp_src=u.src_port, udp_dst=u.dst_port,)            
+    
+        
+        
             # Check if it's a multicast address, if it's ignore it!
             multi = int(dst_ip[0:dst_ip.find('.')])
             b = bin(multi)
@@ -351,20 +405,19 @@ class L3Switch(app_manager.RyuApp):
                 self.flood_arp(datapath, dst_ip, in_port,src_mac,src_ip,msg)
                 return
          
+    
     # Simple function which, given a path with ports and a datapath, returns the port which that datapath has to use
     # as an output, to allow the packet to travel through the given path.
-    """def next_port(self, path, dpid):
-        for n in range(1, len(path) - 1):
-            node, out_port = path[n]
-            if node == dpid:
-                return out_port"""
+    
 
  
     def flood_arp(self, datapath, dst_ip, in_port,src_mac, src_ip, msg):
         dpid = datapath.id
         self.logger.info('Enqueue packet...')
+        #self.queue[dpid][dst_ip]= [in_port, src_mac, src_ip, msg]
         self.queue.setdefault(dpid, {})
-        self.queue[dpid][dst_ip]= [in_port, src_mac, src_ip, msg]
+        self.queue[dpid][dst_ip] = [in_port, src_mac, src_ip, msg]
+
         
         for router_ip in self.L3_ip_to_mac[dpid]:
             if self.same_network(dst_ip, router_ip, '/24'):
@@ -393,8 +446,9 @@ class L3Switch(app_manager.RyuApp):
                 return
 
         else:   # ARP REPLY
-            
-            if not self.queue[dpid]: #If queue is empty
+            if dpid not in self.queue:
+                self.queue[dpid] = []
+            #if not self.queue[dpid]: #If queue is empty
                 self.logger.info('WARNING! -> Queue is empty, possible attacker trying to inject flow!')
             
                 return
@@ -451,7 +505,7 @@ class L3Switch(app_manager.RyuApp):
                                   in_port= ofproto.OFPP_CONTROLLER,
                                   actions=actions,
                                   data=data)
-
+        
         #self.logger.info(out)
         datapath.send_msg(out)
 
@@ -537,7 +591,7 @@ class L3Switch(app_manager.RyuApp):
         # Adds node with attrs topo graph
         #self.topology.add_node(dpid, attr_dict=self.int_port_to_ip[dpid])
         self.logger.info(self.topology.nodes)
-        self.inject_best_paths(self.topology)
+        #self.inject_best_paths(self.topology)
  
 
     @handler.set_ev_cls(event.EventSwitchLeave)
@@ -548,10 +602,14 @@ class L3Switch(app_manager.RyuApp):
         dpid = int(dpid)
         self.logger.info('SWITCH LEAVE EVENT -> dpid = %d', dpid)
         # Remove nodes from graph
-        
+        if dpid in self.topology:
+            self.topology.remove_node(dpid)
+        else:
+            print(f"Node {dpid} not found in the digraph.")
         self.logger.info(self.topology.nodes)
-        self.topology.remove_node(dpid)
         self.inject_best_paths(self.topology)
+       
+
         #self.inst_path_rule(self.topology)
 
     @handler.set_ev_cls(event.EventPortAdd)
@@ -652,7 +710,21 @@ class L3Switch(app_manager.RyuApp):
                                                     instructions = instructions)
         return flow_mod
 
- 
+
+    # def firewall(self):
+    #     priority1=65000
+    #     priority2=64000
+    #     tcp_port = 5555
+
+    #     # Allow TCP from HTTP server (H3) to H5 and vice-versa in specific port!
+    #     match = self.datapaths[1].ofproto_parser.OFPMatch(in_port = 5, eth_type = ether_types.ETH_TYPE_IP, ip_proto=6, ipv4_src= ('192.168.11.11', '255.255.255.0'), ipv4_dst = ('192.168.4.10', '255.255.255.0'), tcp_src = tcp_port)
+    #     actions = [self.datapaths[1].ofproto_parser.OFPActionSetField(eth_src = '00:00:00:00:00:06'), self.datapaths[1].ofproto_parser.OFPActionSetField(eth_dst = '00:00:00:00:00:04'), self.datapaths[1].ofproto_parser.OFPActionOutput(1)]
+    #     self.add_flow(self.datapaths[1], priority1, match, actions)
+        
+    #     match = self.datapaths[2].ofproto_parser.OFPMatch(in_port = 2, eth_type = ether_types.ETH_TYPE_IP, ip_proto=6, ipv4_src= ('192.168.4.10', '255.255.255.0'), ipv4_dst = ('192.168.11.11', '255.255.255.0'))
+    #     actions = [self.datapaths[2].ofproto_parser.OFPActionSetField(eth_src = '00:00:00:00:00:04'), self.datapaths[2].ofproto_parser.OFPActionSetField(eth_dst = '00:00:00:00:00:06'), self.datapaths[2].ofproto_parser.OFPActionOutput(1)]
+    #     self.add_flow(self.datapaths[2], priority1, match, actions)
+
 
     def inject_flow(self, datapath, src_ip, in_port, dst_ip, out_port, priority):
         src_ip_net = src_ip[0:src_ip.rfind('.')+1]+'0'
@@ -729,3 +801,32 @@ class L3Switch(app_manager.RyuApp):
             return True
         else:
             return False
+
+    '''
+    @set_ev_cls(stplib.EventTopologyChange, MAIN_DISPATCHER)
+    def _topology_change_handler(self, ev):
+        dp = ev.dp
+        dpid_str = dpid_lib.dpid_to_str(dp.id)
+        msg = 'Receive topology change event. Flush MAC table.'
+        self.logger.debug("[dpid=%s] %s", dpid_str, msg)
+
+        if dp.id in self.mac_to_port:
+            self.delete_flow(dp)
+            del self.mac_to_port[dp.id]
+    """
+    The change notification event (stplib.EventPortStateChange) of the port status is received and the debug log
+    of the port status is output.
+    """
+    @set_ev_cls(stplib.EventPortStateChange, MAIN_DISPATCHER)
+    def _port_state_change_handler(self, ev):
+        dpid_str = dpid_lib.dpid_to_str(ev.dp.id)
+        of_state = {stplib.PORT_STATE_DISABLE: 'DISABLE',
+                    stplib.PORT_STATE_BLOCK: 'BLOCK',
+                    stplib.PORT_STATE_LISTEN: 'LISTEN',
+                    stplib.PORT_STATE_LEARN: 'LEARN',
+                    stplib.PORT_STATE_FORWARD: 'FORWARD'}
+        self.logger.debug("[dpid=%s][port=%d] state=%s",
+                          dpid_str, ev.port_no, of_state[ev.port_state])'''
+    
+
+    #####TESTANDO>>>>APAGAR DEPOIS 
