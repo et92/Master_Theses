@@ -1,0 +1,13 @@
+#######################Criando uma nova virtualenv#####################################
+
+virtualenv --python="/usr/bin/python3.8" "ryu"
+
+
+
+######################Ativando uma virtualenv##########################################
+
+source ryu/bin/activate
+
+
+######################Desativando uma virtualenv######################################
+deactivate

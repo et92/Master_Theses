@@ -7,7 +7,21 @@ sudo sysctl net.ipv4.ip_forward=1
 
 sudo python tp_mob.py
 ryu-manager L2.py --ofp-tcp-listen-port 6633
-ryu-manager L3ext.py --ofp-tcp-listen-port 6655
+ryu-manager L3ext.py --ofp-tcp-listen-port 6653
+
+Running the app
+Run the FlowManager alone:
+
+$ ryu-manager ~/flowmanager/flowmanager.py
+or with another RYU application:
+
+$ ryu-manager ~/flowmanager/flowmanager.py ryu.L3ext
+and to display the topology:
+
+$ ryu-manager --observe-links ~/flowmanager/flowmanager.py ryu.L3ext
+Use a web broswer to launch the site http://localhost:8080/home/index.html
+
+
 
 
 tcp
@@ -23,7 +37,9 @@ mov iw dev mov-wlan0 scan | grep ssid
 mov iw dev mov-wlan0 link
 sh ifconfig hwsim0 up
 iw dev mov-wlan0 info
+
 sudo service network-manager stop
+
 tcpdump -i ap1-eth1 arp
 
 
@@ -42,3 +58,9 @@ mininet-wifi> py mov.wintfs[0].freq
 mininet-wifi> py mov.wintfs[0].mode
 g
 
+
+#!/bin/sh
+# session hook script; write commands here to execute on the host at the
+# specified state
+BRIFNAME=$(find /sys/devices/virtual/net -name 'enp0s5' | awk -F '[/:]' '{print $6}') 
+ip addr add 172.16.0.254/24 dev $BRIFNAME

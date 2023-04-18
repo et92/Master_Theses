@@ -1,10 +1,12 @@
 
+import os
 
 import sys
 from hashlib import sha224
 from mininet.node import RemoteController, OVSKernelSwitch, Controller
 from mininet.node import OVSSwitch
 from mn_wifi.cli import CLI
+from mn_wifi.net import MininetWithControlWNet
 from mininet.log import setLogLevel, info
 from mininet.link import TCLink
 from subprocess import call
@@ -26,14 +28,15 @@ from mininet.node import Node, UserSwitch, OVSSwitch, CPULimitedHost
 from mininet.moduledeps import pathCheck
 from mininet.link import Intf
 from mn_wifi.link import WirelessIntf, physicalMesh, ITSLink
+from mininet.util import dumpNodeConnections
 
 
         
 def Topology(args):
+    os.system('service network-manager stop')
     info("Creating nodes...")
-    #info('Net A -> 192.168.1.0/24\nNet B -> 192.168.2.0/24\nNet C -> 192.168.3.0/24\n')
-
-    net = Mininet_wifi( controller=RemoteController, switch=OVSSwitch,link=wmediumd, accessPoint=OVSBridgeAP)
+    
+    net = Mininet_wifi( controller=RemoteController, link=wmediumd, wmediumd_mode=interference, switch=OVSKernelSwitch, accessPoint=OVSKernelAP)
     #net = Mininet_wifi(switch=OVSKernelSwitch, waitConnected=True)
 
     info('Defining remote controller on port 6633 (L2 switches)\n')
@@ -48,17 +51,19 @@ def Topology(args):
                         controller=RemoteController,
                         ip='127.0.0.1',
                         protocol='tcp',
-                        port=6655) #L3
+                        port=6653) #L3
+    
+    
 
     info('Adding L3 switch\n')
-    s1 = net.addSwitch('s1', cls=OVSSwitch, failMode="standalone", dpid='0000000000000001', protocols ='OpenFlow13')  # L3 switch
-    s2 = net.addSwitch('s2', cls=OVSSwitch, failMode="standalone", dpid='0000000000000002', protocols ='OpenFlow13')  # L3 switch
-    s3 = net.addSwitch('s3', cls=OVSSwitch, failMode="standalone", dpid='0000000000000003', protocols ='OpenFlow13')  # L3 switch
-    s4 = net.addSwitch('s4', cls=OVSSwitch, failMode="standalone", dpid='0000000000000004', protocols ='OpenFlow13')  # L3 switch
-    s5 = net.addSwitch('s5', cls=OVSSwitch, failMode="standalone", dpid='0000000000000005', protocols ='OpenFlow13')  # L3 switch
+    s1 = net.addSwitch('s1', failMode="standalone", dpid='1', protocols ='OpenFlow13')  # L3 switch
+    s2 = net.addSwitch('s2', failMode="standalone", dpid='2', protocols ='OpenFlow13')  # L3 switch
+    s3 = net.addSwitch('s3', failMode="standalone", dpid='3', protocols ='OpenFlow13')  # L3 switch
+    s4 = net.addSwitch('s4', failMode="standalone", dpid='4', protocols ='OpenFlow13')  # L3 switch
+    s5 = net.addSwitch('s5', failMode="standalone", dpid='5', protocols ='OpenFlow13')  # L3 switch
 
     info('Adding L2 switches\n')
-    s6 = net.addSwitch('s6', cls=OVSSwitch, failMode="standalone", dpid='0000000000000006', protocols ='OpenFlow13') # L2 Switch Net B (no ip)
+    s6 = net.addSwitch('s6', failMode="standalone", dpid='6', protocols ='OpenFlow13') # L2 Switch Net B (no ip)
     
     info('*** Add hosts/\n')
     h1 = net.addHost('h1', ip='192.168.1.10/24', mac = '00:00:00:00:00:01', defaultRoute='via 192.168.1.254')
@@ -67,27 +72,25 @@ def Topology(args):
     h4 = net.addHost('h4', ip='192.168.4.10/24', mac = '00:00:00:00:00:04', defaultRoute='via 192.168.4.254')
     h5 = net.addHost('h5', ip='192.168.5.10/24', mac = '00:00:00:00:00:05', defaultRoute='via 192.168.5.254')
 
-    h7 = net.addHost('h7', ip='192.168.11.7/24', mac = '00:00:00:00:00:77', defaultRoute='via 192.168.11.254', position='33,60,0')
+    #h7 = net.addHost('h7', ip='192.168.11.7/24', mac = '00:00:00:00:00:77', defaultRoute='via 192.168.11.22', position='33,60,0')
 
     info('*** stations/\n')
     mov= net.addStation ('mov', ip='192.168.11.11/24', mac ='00:00:00:00:00:06', defaultRoute='via 192.168.11.254', position='30,60,0')
-    mov2= net.addStation ('mov2', ip='192.168.11.12/24', mac ='00:00:00:00:00:12', defaultRoute='via 192.168.11.254', position='33,60,0')
+    mov2= net.addStation ('mov2', ip='192.168.11.12/24', mac ='00:00:00:00:00:12', defaultRoute='via 192.168.11.254', position='33,60,0',bgscan_threshold=-60, s_inverval=5, l_interval=10, inNamespace=False)
     #s7 = net.addSwitch('s2', cls=OVSSwitch, dpid='0000000000000007') # L2 Switch Net C (no ip)
+    
     info('*** Add AcessPoints/\n')
 
-    ap1 = net.addAccessPoint('ap1', ssid='ssid-ap1', mac ='00:00:00:00:00:07', mode='g', channel='1',
-                                failMode="standalone", position='31,60,0', range= 30, cls=OVSBridgeAP)
+    ap1 = net.addAccessPoint('ap1', ssid='ssid-ap1', mac ='00:00:00:00:00:07', mode='g', channel='1', ieee80211r='yes', 
+                             mobility_domain='a1b2', passwd='123456789a', encrypt='wpa2',
+                                position='31,60,0', range= 30, datapath ='user', protocols ='OpenFlow13', dpid='7')
 
-    ap2 = net.addAccessPoint('ap2', ssid='ssid-ap2', mac ='00:00:00:00:00:08', mode='g', channel='1',
-                                failMode="standalone", position='36,60,0', range= 30, cls=OVSBridgeAP)
+    ap2 = net.addAccessPoint('ap2', ssid='ssid-ap2', mac ='00:00:00:00:00:08', mode='g', channel='1', ieee80211r='yes',
+                             mobility_domain='a1b2', passwd='123456789a', encrypt='wpa2',
+                                position='36,60,0', range= 30, datapath ='user',  protocols ='OpenFlow13', dpid='8')
 
     ap3 = net.addAccessPoint('ap3', ssid='ssid-ap3', mac ='00:00:00:00:00:09', mode='g', channel='6',
-                                failMode="standalone", position='47,60,0',  range= 30, cls=OVSBridgeAP)
-    #ap4 = net.addAccessPoint('ap4', ssid='ssid-ap4', ip='192.168.4.114/24', mac ='00:00:00:00:14:24', mode='g', channel='1',
-                                 #failMode="standalone", position='100,50,0', defaultRoute='via 192.168.4.1', range=45)
-    
-
-
+                                failMode="standalone", position='47,60,0',  range= 30,  datapath ='user', protocols ='OpenFlow13', dpid='9')
     #net.setAssociationCtrl(ac='ssf')
     #net.auto_association()
 
@@ -139,7 +142,7 @@ def Topology(args):
     net.addLink(s6,ap1,2,1)
     net.addLink(s6,ap2,3,1)
     net.addLink(s2,ap3,5,1)
-
+    
     #net.addLink(ap1, h7,2,1)
     
     info('Setting MAC addresses to switches')
@@ -175,9 +178,10 @@ def Topology(args):
     s6.setMAC('60:00:00:00:06:10', intf='s6-eth1')
     s6.setMAC('60:00:00:00:06:20', intf='s6-eth2')
     s6.setMAC('60:00:00:00:06:30', intf='s6-eth3')
-    ap1.setMAC('60:00:00:00:06:40', intf='ap1-eth1')
-    #ap1.setMAC('60:00:00:00:07:77', 'ap1-eth2')
-    ap2.setMAC('60:00:00:00:06:50', intf='ap2-eth1')
+    
+    #ap1.setMAC('60:00:00:00:06:40',intf='ap1-eth1')
+    
+    #ap2.setMAC('60:00:00:00:06:50', intf='ap2-eth1')
 
     #for controller in net.controllers: controller.start()
 
@@ -194,95 +198,195 @@ def Topology(args):
     s3.start([c1])
     s4.start([c1])
     s5.start([c1])
-    s6.start([])
-    ap1.start([])
-    ap2.start([])
-    ap3.start([])
+    s6.start([c1])
+    ap1.start([c1])
+    ap2.start([c1])
+    ap3.start([c1])
 
     #sleep(2)
     #cmd = 'iw dev {} connect {} {}'
-    
 
 
     info('\nSetting up of IP addresses in the SW\n')
-    s1.cmd("ifconfig s1-eth1 0")
-    s1.cmd("ifconfig s1-eth2 0")
-    s1.cmd("ifconfig s1-eth3 0")
-    s1.cmd("ifconfig s1-eth4 0")
-    s1.cmd("ifconfig s1-eth5 0")
-    #mov.cmd("ifconfig mov-wlan 0")
-    #s1.cmd("ifconfig s1-eth6 0")
-    s1.cmd("ip addr add 10.0.0.1/24 brd + dev s1-eth1")
-    s1.cmd("ip addr add 192.168.1.254/24 brd + dev s1-eth2")
-    s1.cmd("ip addr add 10.0.3.1/24 brd + dev s1-eth3")
-    s1.cmd("ip addr add 10.0.1.1/24 brd + dev s1-eth4")
-    s1.cmd("ip addr add 192.168.11.254/24 brd + dev s1-eth5")   
+    s1.setIP('10.0.0.1/24', intf='s1-eth1')
+    s1.setIP('192.168.1.254/24', intf='s1-eth2')
+    s1.setIP('10.0.3.1/24', intf='s1-eth3')
+    s1.setIP('10.0.1.1/24', intf='s1-eth4')
+    s1.setIP('192.168.11.254/24', intf='s1-eth5')
+
+
+    s2.setIP('10.0.0.2/24', intf='s2-eth1')
+    s2.setIP('192.168.2.254/24', intf='s2-eth2')
+    s2.setIP('10.0.6.1/24', intf='s2-eth3')
+    s2.setIP('10.0.2.1/24', intf='s2-eth4')
+    s2.setIP('192.168.20.254/24 ', intf='s2-eth5')
+
+
+    s3.setIP('10.0.3.2/24', intf='s3-eth1')
+    s3.setIP('192.168.3.254/24', intf='s3-eth2')
+    s3.setIP('10.0.5.2/24', intf='s3-eth3')
+
+
+    s4.setIP('10.0.6.2/24', intf='s4-eth1')
+    s4.setIP('192.168.4.254/24', intf='s4-eth2')
+    s4.setIP('10.0.5.2/24', intf='s4-eth3')
+
+
+    s5.setIP('10.0.5.1/24', intf='s5-eth1')
+    s5.setIP('10.0.4.2/24', intf='s5-eth2')
+    s5.setIP('10.0.2.2/24', intf='s5-eth3')
+    s5.setIP('10.0.1.2/24', intf='s5-eth4')
+    s5.setIP('192.168.5.254/24', intf='s5-eth5')
     
-    s1.cmd("echo 1 > /proc/sys/net/ipv4/ip_forward")
+    s6.setIP('192.168.11.253/24', intf='s6-eth1')
+    s6.setIP('192.168.11.252/24', intf='s6-eth2')
+    s6.setIP('192.168.11.251/24', intf='s6-eth3')
+    #s6.cmd("echo 1 > /proc/sys/net/ipv4/ip_forward") 
 
-    s2.cmd("ifconfig s2-eth1 0")
-    s2.cmd("ifconfig s2-eth2 0")
-    s2.cmd("ifconfig s2-eth3 0")
-    s2.cmd("ifconfig s2-eth4 0")
-    s2.cmd("ifconfig s2-eth5 0")
-    #ap3.cmd("ifconfig ap3-eth1 0")
-    s2.cmd("ip addr add 10.0.0.2/24 brd + dev s2-eth1")
-    s2.cmd("ip addr add 192.168.2.254/24 brd + dev s2-eth2")
-    s2.cmd("ip addr add 10.0.6.1/24 brd + dev s2-eth3")
-    s2.cmd("ip addr add 10.0.2.1/24 brd + dev s2-eth4")
-    s2.cmd("ip addr add 192.168.20.254/24 brd + dev s2-eth5")
-    #ap3.cmd("ip addr add 192.168.20.253/24 brd + dev ap3-eth1")
+    ap1.setIP('192.168.11.1/24', intf='ap1-wlan1')
+    ap2.setIP('192.168.11.2/24', intf='ap2-wlan1')
 
-    s2.cmd("echo 1 > /proc/sys/net/ipv4/ip_forward")
+    ap1.setIP('192.168.11.3/24', intf='ap1-eth1')
+    ap2.setIP('192.168.11.4/24', intf='ap2-eth1')
+    os.system('ip link set hwsim0 up')
     
-
-    s3.cmd("ifconfig s3-eth1 0")
-    s3.cmd("ifconfig s3-eth2 0")
-    s3.cmd("ifconfig s3-eth3 0")
-    s3.cmd("ip addr add 10.0.3.2/24 brd + dev s3-eth1")
-    s3.cmd("ip addr add 192.168.3.254/24 brd + dev s3-eth2")
-    s3.cmd("ip addr add 10.0.5.2/24 brd + dev s3-eth3")
-
-    s3.cmd("echo 1 > /proc/sys/net/ipv4/ip_forward")
-
-    s4.cmd("ifconfig s4-eth1 0")
-    s4.cmd("ifconfig s4-eth2 0")
-    s4.cmd("ifconfig s4-eth3 0")
-    #s4.cmd("ifconfig s4-eth4 0")
-    #s4.cmd("ifconfig s4-eth5 0")
-    s4.cmd("ip addr add 10.0.6.2/24 brd + dev s4-eth1")
-    s4.cmd("ip addr add 192.168.4.254/24 brd + dev s4-eth2")
-    s4.cmd("ip addr add 10.0.4.1/24 brd + dev s4-eth3")
-    s4.cmd("echo 1 > /proc/sys/net/ipv4/ip_forward")
-
-    s5.cmd("ifconfig s5-eth1 0")
-    s5.cmd("ifconfig s5-eth2 0")
-    s5.cmd("ifconfig s5-eth3 0")
-    s5.cmd("ifconfig s5-eth4 0")
-    s5.cmd("ifconfig s5-eth5 0")
-    s5.cmd("ip addr add 10.0.5.1/24 brd + dev s5-eth1")
-    s5.cmd("ip addr add 10.0.4.2/24 brd + dev s5-eth2")
-    s5.cmd("ip addr add 10.0.2.2/24 brd + dev s5-eth3")
-    s5.cmd("ip addr add 10.0.1.2/24 brd + dev s5-eth4")
-    s5.cmd("ip addr add 192.168.5.254/24 brd + dev s5-eth5")
-
-    ap1.cmd('echo 1 > /proc/sys/net/ipv4/ip_forward')
-    ap2.cmd('echo 1 > /proc/sys/net/ipv4/ip_forward')
-    ap3.cmd('echo 1 > /proc/sys/net/ipv4/ip_forward')
+    
+    # ap1.cmd('ifconfig ap1-wlan1 192.168.11.1 netmask 255.255.255.0')
+    # ap1.cmd('service dnsmasq restart')
+    # ap1.cmd('echo 1 > /proc/sys/net/ipv4/ip_forward')
+    # s1.cmd('ovs-vsctl add-port s1 ap1-wlan1')
+    # s6.cmd('ovs-vsctl add-port s6 ap1-wlan1')
 
     
 
-    # ap1.cmd('route add -net 192.168.11.0/24 gw 192.168.11.254')
-    # ap2.cmd('route add -net 192.168.11.0/24 gw 192.168.11.254')
-    #ap1.setIP('192.168.11.1/24', intf='ap1-wlan1')
-    ap1.setIP('192.168.11.22/24', intf='ap1-eth1')
+    #ap1.cmd('sysctl net.ipv4.ip_forward=1')
+    #ap1.cmd('route add -net 192.168.11.0/24 dev ap1-eth1')
+    #ap1.cmd('route add -net 192.168.11.0/24 dev ap1-wlan1')
+    #mov.cmd('route add -net 192.168.11.0/24 gw 192.168.11.254')
+
+    #mov.setDefaultRoute('dev mov-wlan0 via 192.168.11.254')
+  
+
+
+    #s6.setIP('192.168.11.253/24', intf='s6-eth1')
+    #s6.setIP('192.168.11.221/24', intf='s6-eth2')
+    #s6.setIP('192.168.11.231/24', intf='s6-eth3')
+
+    #ap1.cmd('ifconfig ap1-wlan1 192.168.11.1 netmask 255.255.255.0')
+   
+    
+    #mov.setDefaultRoute('dev ap1-wlan1 via 192.168.11.254')
+    #ap1.setDefaultRoute('dev ap1-eth1 via 192.168.11.254')
+
+    
 
     #ap2.setIP('192.168.11.2/24', intf='ap2-wlan1')
     #ap2.setIP('192.168.11.23/24', intf='ap2-eth1')
+    #s1.attach(ap1)
+    #s6.attach(ap1)
+    #ap1.cmd('ip route add default via %s' % s1.IP())
+    #ap1.cmd('ip route add default via %s' % s6.IP())
+    
+    # Set IP addresses for the switch interface inside the namespace
+    
+   
+    #ap1.cmd('route add -net 192.168.11.254/24 dev ap1-wlan1')
+    # ap1.cmd("ip link add name {name}-eth0 type veth peer name {name}-eth1".format(name=name))
+    # ap1.cmd("ip link set {name}-eth1 netns {name}".format(name=name))
+    # ap1.cmd("ip netns exec {name} ip link set lo up".format(name=name))
+    # ap1.cmd("ip netns exec {name} ip link set {name}-eth1 up".format(name=name))
+    # ap1.cmd("ip netns exec {name} ip addr add 10.0.0.1/24 dev {name}-eth1".format(name=name)
+    
+    """ ap1.cmd("ip link add veth0 type veth peer name veth1")
+    ap1.cmd("ip link set veth0 netns ap1-wlan1")
+    #ap1.cmd("ip netns exec ap1-wlan1 ip addr add 192.168.11.1/24 dev veth0")
+    ap1.cmd("ip link set veth1 s1-eth5")
+    ap1.cmd("ip addr add 192.168.11.254/24 dev veth1")
+    ap1.cmd("ip addr add 192.168.11.1/24 dev ap1-wlan1")
+    #ap1.setIP('192.168.11.1/24', intf='ap1-wlan1')
+    ap1.setIP('192.168.11.2/24', intf='ap1-eth1') """
 
-    #ap1.cmd('echo 1 > /proc/sys/net/ipv4/ip_forward')
-    #ap2.cmd('echo 1 > /proc/sys/net/ipv4/ip_forward')
+    #ap1.cmd("sudo ovs-vsctl add-port s1-eth5 veth1")
+    #ap1.cmd("sudo ip link set veth0 up")
+    #ap1.cmd("sudo ip link set veth1 up")
+    #ap1.cmd("sysctl -w net.ipv4.conf.veth0.forwarding=1")
 
+
+    # mov.setIP('192.168.11.11/24')
+   
+
+    # mov.cmd('ip route add default via %s' % s6.IP())
+    # mov.cmd('ip route add default via %s' % s1.IP())
+    # #net.get('mov').cmd('ip route add 192.168.11.0/24 via %s' % s6.intf('mov-wlan0').IP())
+
+
+
+    #s1.cmd("ifconfig s1-eth1 0")
+    #s1.cmd("ifconfig s1-eth2 0")
+    #s1.cmd("ifconfig s1-eth3 0")
+    #s1.cmd("ifconfig s1-eth4 0")
+    #s1.cmd("ifconfig s1-eth5 0")
+    #mov.cmd("ifconfig mov-wlan 0")
+    #s1.cmd("ifconfig s1-eth6 0")
+    #s1.cmd("ip addr add 10.0.0.1/24 brd + dev s1-eth1")
+    #s1.cmd("ip addr add 192.168.1.254/24 brd + dev s1-eth2")
+    #s1.cmd("ip addr add 10.0.3.1/24 brd + dev s1-eth3")
+    #s1.cmd("ip addr add 10.0.1.1/24 brd + dev s1-eth4")
+    #s1.cmd("ip addr add 192.168.11.254/24 brd + dev s1-eth5")   
+    
+    #s1.cmd("echo 1 > /proc/sys/net/ipv4/ip_forward")
+
+    # s2.cmd("ifconfig s2-eth1 0")
+    # s2.cmd("ifconfig s2-eth2 0")
+    # s2.cmd("ifconfig s2-eth3 0")
+    # s2.cmd("ifconfig s2-eth4 0")
+    # s2.cmd("ifconfig s2-eth5 0")
+    
+    # s2.cmd("ip addr add 10.0.0.2/24 brd + dev s2-eth1")
+    # s2.cmd("ip addr add 192.168.2.254/24 brd + dev s2-eth2")
+    # s2.cmd("ip addr add 10.0.6.1/24 brd + dev s2-eth3")
+    # s2.cmd("ip addr add 10.0.2.1/24 brd + dev s2-eth4")
+    # s2.cmd("ip addr add 192.168.20.254/24 brd + dev s2-eth5")
+    # #ap3.cmd("ip addr add 192.168.20.253/24 brd + dev ap3-eth1")
+    # s2.cmd("echo 1 > /proc/sys/net/ipv4/ip_forward")
+    
+
+    # s3.cmd("ifconfig s3-eth1 0")
+    # s3.cmd("ifconfig s3-eth2 0")
+    # s3.cmd("ifconfig s3-eth3 0")
+    # s3.cmd("ip addr add 10.0.3.2/24 brd + dev s3-eth1")
+    # s3.cmd("ip addr add 192.168.3.254/24 brd + dev s3-eth2")
+    # s3.cmd("ip addr add 10.0.5.2/24 brd + dev s3-eth3")
+    # s3.cmd("echo 1 > /proc/sys/net/ipv4/ip_forward")
+
+
+    # s4.cmd("ifconfig s4-eth1 0")
+    # s4.cmd("ifconfig s4-eth2 0")
+    # s4.cmd("ifconfig s4-eth3 0")
+    
+    # s4.cmd("ip addr add 10.0.6.2/24 brd + dev s4-eth1")
+    # s4.cmd("ip addr add 192.168.4.254/24 brd + dev s4-eth2")
+    # s4.cmd("ip addr add 10.0.4.1/24 brd + dev s4-eth3")
+    # s4.cmd("echo 1 > /proc/sys/net/ipv4/ip_forward")
+
+
+    # s5.cmd("ifconfig s5-eth1 0")
+    # s5.cmd("ifconfig s5-eth2 0")
+    # s5.cmd("ifconfig s5-eth3 0")
+    # s5.cmd("ifconfig s5-eth4 0")
+    # s5.cmd("ifconfig s5-eth5 0")
+    # s5.cmd("ip addr add 10.0.5.1/24 brd + dev s5-eth1")
+    # s5.cmd("ip addr add 10.0.4.2/24 brd + dev s5-eth2")
+    # s5.cmd("ip addr add 10.0.2.2/24 brd + dev s5-eth3")
+    # s5.cmd("ip addr add 10.0.1.2/24 brd + dev s5-eth4")
+    # s5.cmd("ip addr add 192.168.5.254/24 brd + dev s5-eth5")
+
+
+    # ap1.cmd('echo 1 > /proc/sys/net/ipv4/ip_forward')
+    # ap2.cmd('echo 1 > /proc/sys/net/ipv4/ip_forward')
+    # ap3.cmd('echo 1 > /proc/sys/net/ipv4/ip_forward')
+
+   
     #mov.cmd('route add -net 192.168.11.0/24 gw 192.168.11.254')
     #mov.cmd('ip route add default 192.168.11.11/24 via mov-wlan0')
     
@@ -299,13 +403,15 @@ def Topology(args):
 
     #s5.cmd("echo 1 > /proc/sys/net/ipv4/ip_forward")
 
-    #s6.cmd("ifconfig s6-eth1 0")
-    #s6.cmd("ifconfig s6-eth2 0")
-    #s6.cmd("ifconfig s6-eth3 0")
-    #s6.cmd("ip addr add 192.168.11.253/24 brd + dev s6-eth1")
-    #s6.cmd("ip addr add 192.168.11.221/24 brd + dev s6-eth2")
-    #s6.cmd("ip addr add 192.168.11.231/24 brd + dev s6-eth3")
-    #s6.cmd("echo 1 > /proc/sys/net/ipv4/ip_forward")
+    """ 
+    s6.cmd("ifconfig s6-eth1 0")
+    s6.cmd("ifconfig s6-eth2 0")
+    s6.cmd("ifconfig s6-eth3 0")
+    s6.cmd("ip addr add 192.168.11.253/24 brd + dev s6-eth1")
+    s6.cmd("ip addr add 192.168.11.221/24 brd + dev s6-eth2")
+    s6.cmd("ip addr add 192.168.11.231/24 brd + dev s6-eth3")
+    s6.cmd("echo 1 > /proc/sys/net/ipv4/ip_forward")  """
+    
 
     '''
     mov.cmd('iw dev %s interface add mon0 type monitor' % mov.params['wlan'][0])
