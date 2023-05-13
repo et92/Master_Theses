@@ -1,6 +1,6 @@
 #######################Criando uma nova virtualenv#####################################
 
-virtualenv --python="/usr/bin/python3.8" "ryu"
+virtualenv --python="/usr/bin/python3.8" "ENV_NAME"
 
 
 
@@ -11,3 +11,11 @@ source ryu/bin/activate
 
 ######################Desativando uma virtualenv######################################
 deactivate
+
+
+sudo apt update
+sudo apt install software-properties-common
+sudo add-apt-repository ppa:deadsnakes/ppa
+sudo apt install python3.8
+
+sudo apt-get install python-is-python3.8

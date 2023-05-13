@@ -3,5 +3,5 @@ sudo sysctl net.ipv4.ip_forward=1
 
 sudo python tp_mob.py
 ryu-manager L2.py --ofp-tcp-listen-port 6633
-ryu-manager L3.py --ofp-tcp-listen-port 6655
+ryu-manager L3.py --ofp-tcp-listen-port 6653
 

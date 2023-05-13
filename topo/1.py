@@ -33,7 +33,6 @@ from mininet.util import dumpNodeConnections
 
         
 def Topology(args):
-    os.system ('sudo ufw disable')
     os.system('service network-manager stop')
     info("Creating nodes...")
     
@@ -76,21 +75,24 @@ def Topology(args):
     #h7 = net.addHost('h7', ip='192.168.11.7/24', mac = '00:00:00:00:00:77', defaultRoute='via 192.168.11.22', position='33,60,0')
 
     info('*** stations/\n')
-    mov=  net.addStation('mov',  ip='192.168.11.11/24', defaultRoute='via 192.168.11.254', position='452.0,600.0,0')
-    mov2= net.addStation('mov2', ip='192.168.11.12/24', defaultRoute='via 192.168.11.254',  position='626.0,600.0,0')
-    mov3= net.addStation('mov3', ip='192.168.20.11/24', defaultRoute='via 192.168.20.254',  position='1200.0,600.0,0')
+    mov= net.addStation ('mov', ip='192.168.11.11/24', mac ='00:00:00:00:00:06', defaultRoute='via 192.168.11.254', position='30,60,0', inNamespace=False)
+    mov2= net.addStation ('mov2', ip='192.168.11.12/24', mac ='00:00:00:00:00:12', defaultRoute='via 192.168.11.254', position='33,60,0',bgscan_threshold=-60, s_inverval=5, l_interval=10)
+    mov3= net.addStation ('mov3', ip='192.168.20.11/24', mac ='00:00:00:00:00:13', defaultRoute='via 192.168.20.254', position='50,60,0',inNamespace=False)
     #s7 = net.addSwitch('s2', cls=OVSSwitch, dpid='0000000000000007') # L2 Switch Net C (no ip)
     
     info('*** Add AcessPoints/\n')
 
-    ap1 = net.addAccessPoint('ap1', ssid='ssid-ap1', mode='g', channel='1',
-                            position='448.0,440.0,0', cls=OVSBridgeAP, protocols ='OpenFlow13')
+    ap1 = net.addAccessPoint('ap1', ssid='ssid-ap1', mac ='00:00:00:00:00:07', mode='g', channel='1', ieee80211r='yes', 
+                             mobility_domain='a1b2', passwd='123456789a', encrypt='wpa2',
+                                position='31,60,0', range= 30, datapath ='user', dpid='7', cls=OVSKernelAP, protocols ='OpenFlow13')
 
-    ap2 = net.addAccessPoint('ap2', ssid='ssid-ap2', mode='g', channel='1',
-                            position='647.0,446.0,0', cls=OVSBridgeAP, protocols ='OpenFlow13')
+    ap2 = net.addAccessPoint('ap2', ssid='ssid-ap2', mac ='00:00:00:00:00:08', mode='g', channel='1', ieee80211r='yes',
+                             mobility_domain='a1b2', passwd='123456789a', encrypt='wpa2',
+                                position='36,60,0', range= 30, datapath ='user', dpid='8', cls=OVSKernelAP, protocols ='OpenFlow13')
 
-    ap3 = net.addAccessPoint('ap3', ssid='ssid-ap3', mode='g', channel='6',
-                            position='1190.0,450.0,0', failMode="standalone",  cls=OVSBridgeAP, protocols ='OpenFlow13')
+    ap3 = net.addAccessPoint('ap3', ssid='ssid-ap3', mac ='00:00:00:00:00:09', mode='g', channel='6',ieee80211r='yes',
+                             mobility_domain='a1b2', passwd='123456789a', encrypt='wpa2',
+                                failMode="standalone", position='47,60,0',  range= 30,  datapath ='user', dpid='9', cls=OVSKernelAP, protocols ='OpenFlow13')
     #net.setAssociationCtrl(ac='ssf')
     #net.auto_association()
 
@@ -99,10 +101,10 @@ def Topology(args):
 
     
     if '-p' not in args:
-                net.plotGraph(max_x=1550, max_y=1550)
+                net.plotGraph(max_x=250, max_y=250)
 
 
-    """ if '-c' in args:
+    if '-c' in args:
         mov.coord = ['20.0,60.0,0.0', '30.0,60.0,0.0', '31.0,30.0,0.0']
         mov2.coord = ['20.0,60.0,0.0', '30.0,60.0,0.0', '31.0,30.0,0.0']
         
@@ -121,7 +123,7 @@ def Topology(args):
     net.mobility(mov, 'stop', time=222, **p1)
     net.mobility(mov2, 'stop', time=222, **p1)
     net.stopMobility(time=230)
-    """
+
     net.auto_association()
     info('*** Associating and Creating Add links\n')
 
@@ -142,10 +144,6 @@ def Topology(args):
     net.addLink(s6,ap1,2,1)
     net.addLink(s6,ap2,3,1)
     net.addLink(s2,ap3,5,1)
-    # net.addLink(mov,ap1)
-    # net.addLink(ap1,mov2)
-    # net.addLink(ap3,mov3)
-    
     
     #net.addLink(ap1, h7,2,1)
     
@@ -179,9 +177,9 @@ def Topology(args):
     s5.setMAC('50:00:00:00:05:40', 's5-eth4')
     s5.setMAC('50:00:00:00:05:50', 's5-eth5')
 
-    # s6.setMAC('60:00:00:00:06:10', intf='s6-eth1')
-    # s6.setMAC('60:00:00:00:06:20', intf='s6-eth2')
-    # s6.setMAC('60:00:00:00:06:30', intf='s6-eth3')
+    s6.setMAC('60:00:00:00:06:10', intf='s6-eth1')
+    s6.setMAC('60:00:00:00:06:20', intf='s6-eth2')
+    s6.setMAC('60:00:00:00:06:30', intf='s6-eth3')
 
     
     
@@ -198,28 +196,16 @@ def Topology(args):
     info("*** Starting network\n")
 
     net.build()
-    for controller in net.controllers:
-        controller.start()
     info('*** Starting switches/APs\n')
     s1.start([c1])
     s2.start([c1])
     s3.start([c1])
     s4.start([c1])
     s5.start([c1])
-    s6.start([])
-    ap1.start([])
-    ap2.start([])
-    ap3.start([])
-
-    # net.get('s1').start([c1])
-    # net.get('s2').start([c1])
-    # net.get('s3').start([c1])
-    # net.get('s4').start([c1])
-    # net.get('s5').start([c1])
-    # net.get('s6').start([c1])
-    # net.get('ap1').start([c1])
-    # net.get('ap2').start([c1]) 
-    # net.get('ap3').start([c1])
+    s6.start([c1])
+    ap1.start([c1])
+    ap2.start([c1])
+    ap3.start([c1])
 
     #sleep(2)
     #cmd = 'iw dev {} connect {} {}'
@@ -262,13 +248,13 @@ def Topology(args):
     #s6.cmd("echo 1 > /proc/sys/net/ipv4/ip_forward") 
 
 
-    ap1.setIP('192.168.11.1/24', intf='ap1-wlan1')
-    #ap2.setIP('192.168.11.2/24', intf='ap2-wlan1')
-    #ap3.setIP('192.168.20.20/24', intf='ap3-wlan1')
+    #ap1.setIP('192.168.11.1/24', intf='ap1-wlan1')
+    ap2.setIP('192.168.11.2/24', intf='ap2-wlan1')
+    ap3.setIP('192.168.20.20/24', intf='ap3-wlan1')
 
-    ap1.setIP('192.168.11.3/24', intf='ap1-eth1')
-    #ap2.setIP('192.168.11.4/24', intf='ap2-eth1')
-    #ap3.setIP('192.168.20.253/24', intf='ap3-eth1')
+    #ap1.setIP('192.168.11.3/24', intf='ap1-eth1')
+    ap2.setIP('192.168.11.4/24', intf='ap2-eth1')
+    ap3.setIP('192.168.20.253/24', intf='ap3-eth1')
 
     '''  
     mov.cmd("sudo ovs-vsctl add-br mov-wlan0")
@@ -297,18 +283,9 @@ def Topology(args):
     
 
     ap1.cmd('sysctl net.ipv4.ip_forward=1')
-    ap1.cmd('route add -net 192.168.11.0/24 dev ap1-wlan1') #Aqui esta a fazer os AP funcionarem com as stations
-    ap1.cmd('route add -net 192.168.1.0/24 dev ap1-wlan1')
-
-    h1.cmd('route add -net 192.168.11.0/24 via 192.168.1.254')
-    #ap1.cmd('route add -net 192.168.11.0/24 dev ap1-eth1')
-
-
-    mov.cmd('route add -net 192.168.1.0/24 via 192.168.11.254')
-   
-    #mov.cmd('route add -net 192.168.1.0/24 via ap1-wlan1')
-    #ap1.cmd('route add -net 192.168.11.254/24 dev ap1-wlan1')
-    mov.cmd('ip route add default via %s' % s1.IP(intf='s1-eth5'))
+    ''' ap1.cmd('route add -net 192.168.11.0/24 dev ap1-eth1')
+    ap1.cmd('route add -net 192.168.11.0/24 dev ap1-wlan1')
+     '''
 
 
     #mov.setDefaultRoute('dev mov-wlan0 via 192.168.11.254')
@@ -320,7 +297,10 @@ def Topology(args):
     #ap1.cmd('ifconfig ap1-wlan1 192.168.11.1 netmask 255.255.255.0')
 
 
-    
+    mov.setDefaultRoute('dev ap1-wlan1 via 192.168.11.254')
+    #ap1.setDefaultRoute('dev ap1-eth1 via 192.168.11.254')
+
+
     #ap2.setIP('192.168.11.2/24', intf='ap2-wlan1')
     #ap2.setIP('192.168.11.23/24', intf='ap2-eth1')
     #s1.attach(ap1)
@@ -330,7 +310,7 @@ def Topology(args):
     
     # Set IP addresses for the switch interface inside the namespace
    
-    
+    #ap1.cmd('route add -net 192.168.11.254/24 dev ap1-wlan1')
     # ap1.cmd("ip link add name {name}-eth0 type veth peer name {name}-eth1".format(name=name))
     # ap1.cmd("ip link set {name}-eth1 netns {name}".format(name=name))
     # ap1.cmd("ip netns exec {name} ip link set lo up".format(name=name))
@@ -355,8 +335,8 @@ def Topology(args):
 
     # mov.setIP('192.168.11.11/24')
 
-    #mov.cmd('ip route add default via %s' % s6.IP())
-    
+    # mov.cmd('ip route add default via %s' % s6.IP())
+    # mov.cmd('ip route add default via %s' % s1.IP())
     # #net.get('mov').cmd('ip route add 192.168.11.0/24 via %s' % s6.intf('mov-wlan0').IP())
 
     #s1.cmd("ifconfig s1-eth1 0")
