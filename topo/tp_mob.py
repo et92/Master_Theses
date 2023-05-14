@@ -83,13 +83,13 @@ def Topology(args):
     
     info('*** Add AcessPoints/\n')
 
-    ap1 = net.addAccessPoint('ap1', ssid='ssid-ap1', mode='g', channel='1',
+    ap1 = net.addAccessPoint('ap1', ssid='ssid-ap1', mode='g', channel='1', dpid='7',
                             position='448.0,440.0,0', cls=OVSBridgeAP, protocols ='OpenFlow13')
 
-    ap2 = net.addAccessPoint('ap2', ssid='ssid-ap2', mode='g', channel='1',
+    ap2 = net.addAccessPoint('ap2', ssid='ssid-ap2', mode='g', channel='6', dpid='8',
                             position='647.0,446.0,0', cls=OVSBridgeAP, protocols ='OpenFlow13')
 
-    ap3 = net.addAccessPoint('ap3', ssid='ssid-ap3', mode='g', channel='6',
+    ap3 = net.addAccessPoint('ap3', ssid='ssid-ap3', mode='g', channel='11', dpid='9',
                             position='1190.0,450.0,0', failMode="standalone",  cls=OVSBridgeAP, protocols ='OpenFlow13')
     #net.setAssociationCtrl(ac='ssf')
     #net.auto_association()
@@ -142,7 +142,7 @@ def Topology(args):
     net.addLink(s6,ap1,2,1)
     net.addLink(s6,ap2,3,1)
     net.addLink(s2,ap3,5,1)
-    # net.addLink(mov,ap1)
+    #net.addLink(mov,ap1)
     # net.addLink(ap1,mov2)
     # net.addLink(ap3,mov3)
     
@@ -207,9 +207,9 @@ def Topology(args):
     s4.start([c1])
     s5.start([c1])
     s6.start([])
-    ap1.start([])
-    ap2.start([])
-    ap3.start([])
+    ap1.start([c1])
+    ap2.start([c1])
+    ap3.start([c1])
 
     # net.get('s1').start([c1])
     # net.get('s2').start([c1])
@@ -263,10 +263,10 @@ def Topology(args):
 
 
     ap1.setIP('192.168.11.1/24', intf='ap1-wlan1')
-    #ap2.setIP('192.168.11.2/24', intf='ap2-wlan1')
-    #ap3.setIP('192.168.20.20/24', intf='ap3-wlan1')
+    ap2.setIP('192.168.11.2/24', intf='ap2-wlan1')
+    ap3.setIP('192.168.20.20/24', intf='ap3-wlan1')
 
-    ap1.setIP('192.168.11.3/24', intf='ap1-eth1')
+    #ap1.setIP('192.168.11.3/24', intf='ap1-eth1')
     #ap2.setIP('192.168.11.4/24', intf='ap2-eth1')
     #ap3.setIP('192.168.20.253/24', intf='ap3-eth1')
 
@@ -298,17 +298,19 @@ def Topology(args):
 
     ap1.cmd('sysctl net.ipv4.ip_forward=1')
     ap1.cmd('route add -net 192.168.11.0/24 dev ap1-wlan1') #Aqui esta a fazer os AP funcionarem com as stations
-    ap1.cmd('route add -net 192.168.1.0/24 dev ap1-wlan1')
+    ap2.cmd('route add -net 192.168.11.0/24 dev ap1-wlan1') #Aqui esta a fazer os AP funcionarem com as stations
+    ap3.cmd('route add -net 192.168.20.0/24 dev ap3-wlan1') #Aqui esta a fazer os AP funcionarem com as stations
+
+    mov.cmd('ip route add default via %s' % s1.IP(intf='s1-eth5'))
+    mov3.cmd('ip route add default via %s' % s2.IP(intf='s2-eth5'))
+    ap1.cmd('route add -net 192.168.1.0/24 dev ap1-wlan1') #nexthop
+
+
 
     h1.cmd('route add -net 192.168.11.0/24 via 192.168.1.254')
-    #ap1.cmd('route add -net 192.168.11.0/24 dev ap1-eth1')
-
-
+    
     mov.cmd('route add -net 192.168.1.0/24 via 192.168.11.254')
-   
-    #mov.cmd('route add -net 192.168.1.0/24 via ap1-wlan1')
-    #ap1.cmd('route add -net 192.168.11.254/24 dev ap1-wlan1')
-    mov.cmd('ip route add default via %s' % s1.IP(intf='s1-eth5'))
+    
 
 
     #mov.setDefaultRoute('dev mov-wlan0 via 192.168.11.254')
