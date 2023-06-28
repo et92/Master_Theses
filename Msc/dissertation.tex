@@ -677,10 +677,18 @@ The previous subsection (\ref{Component-view-of-SDVN}) highlighted the architect
 \section{Selected tools}
 \label{tools}
 
-To achieve the objectives outlined (section \ref{objectives}), some essential tools were defined, we will discuss about these tools in the following subsections.
-Based in our objectives we should be fulfilled same requiremnt
+To achieve the objectives outlined (section \ref{objectives}), some essential tools were defined \ref{selected-tools}, we will discuss about these tools in the following subsections.
 
-\subsection{SUMO - Simulation of Urban MObility}
+\begin{figure}[H]
+\begin{center}
+  \includegraphics[width=1\textwidth]{img/selected tools.png}
+\end{center}
+  \caption{Selected-tools}\par
+  \centering  
+\label{selected-tools}
+\end{figure}
+
+\subsection{SUMO - Simulation of Urban Mobility}
 \label{SUMO}
 
 SUMO is abbreviated as Simulation of Urban Mobility ~\cite{dlr127994}. 
@@ -713,7 +721,10 @@ The applications of SUMO in recent simulation endeavors encompass a broad spectr
 \subsection{Mininet-Wifi}
 \label{Mininet-Wifi}
 
-Mininet-WiFi is a fork of the Mininet SDN network emulator and extended the functionality of Mininet by adding virtualized WiFi stations and access points based on the standard Linux wireless drivers and the 80211-hwsim wireless simulation driver. We added classes to support the addition of these wireless devices in a Mininet network scenario and to emulate the attributes of a mobile station such as position and movement relative to the access points.
+Mininet-WiFi is a fork of the Mininet SDN network emulator and extended the functionality of Mininet by adding virtualized WiFi stations and access points based on the standard Linux wireless drivers and the 80211-hwsim wireless simulation driver. 
+
+Using Mininet–WiFi, users can define different network topologies, where host/nodes can be defined with multiple wireless interfaces. Along with these, Mininet–WiFi supports defining radio parameters such as operating frequency channel, propagation model, coverage range, and transmission power (Tx). The network topologies developed with Mininet–WiFi have the potential to be controlled programmatically based on OpenFlow protocol versions 3. 
+
 The Mininet-WiFi extended the base Mininet code by adding or modifying classes and scripts. So, Mininet-WiFi adds new functionality and still supports all the normal SDN emulation capabilities of the standard Mininet network emulator.
 
 Mininet-WiFi works fine on any Ubuntu distribution from 14.04 onwards, although there are some bugs in Ubuntu 16.04 ~\cite{mininet-wifibook}.
@@ -749,7 +760,10 @@ Both stations and access points use cfg80211 to communicate with the wireless de
 \subsection{Ryu Controller}
 \label{Ryu-Controller}
 
-Ryu is a component-based software-defined network controller. Ryu provides software components with a well-defined API that makes it easy for developers to create new network management and control applications. One of Ryu's advantages is the fact that it supports all versions of OpenFlow. It is a python controller and is based on modules, with a fixed base that aims to launch the controller and forward messages to the different registered modules, being these to take the actions on the package.\par
+Ryu is a component-based software-defined network controller. Ryu provides software components with a well-defined API that makes it easy for developers to create new network management and control applications.
+Ryu offers developers a collection of software elements that come with clear and easily understandable interfaces, allowing them to effortlessly develop fresh applications for network management and control. Ryu is equipped with support for multiple protocols used in managing network devices, including OpenFlow, Netconf, OF-config, and more. Speaking specifically about OpenFlow, Ryu provides complete support for versions 1.0, 1.2, 1.3, 1.4, 1.5, and Nicira Extensions.
+
+It is a python controller and is based on modules, with a fixed base that aims to launch the controller and forward messages to the different registered modules, being these to take the actions on the package.\par
 The framework facilitates development by providing the basic functions for controlling the data plane and the functions that are common to SDN applications. The functions that are features of Ryu are described in the following subsections.\par
 
 
@@ -765,10 +779,10 @@ The framework facilitates development by providing the basic functions for contr
 \subsubsection{Component-based framework}
 
 \begin{itemize}
-    \item Your application consists of component(s)\par
+    \item Ryu application consists of component(s)\par
         Ryu provides a bunch of components useful for SDN
 applications (see figure \ref{Ryu-compo}).\par
-        You can modify the existing components and implement your new components. \par
+        Ryu can modify the existing components and implement your new components. \par
         Combines the components to build your application.\par
 \end{itemize}
 
@@ -797,7 +811,11 @@ applications (see figure \ref{Ryu-compo}).\par
 
 \section{Summary}
 
-In this chapter, an overview was made of the various essential topics for the development of this work, from the basic principles of SDN, in which the layers that constitute the architecture of SDN are inserted. There was also an overview of Vanets, the basic principles of a Vanet and its leverage with the SDN. We also present the convergence of SDN and VANETs in detail. The components of the SDVN architecture were also analyzed, such as infrastructure plane, control plane and application plane of SDVN, architecture modes and access technologies. Finally, we present some tools that will be essential for the experiments that we have defined as a proposal for this thesis.
+In this chapter, an overview was made of the various essential topics for the development of this work, from the basic principles of SDN, in which the layers that constitute the architecture of SDN are inserted. There was also an overview of Vanets, the basic principles of a Vanet and its leverage with the SDN. We also present the convergence of SDN and VANETs in detail. The components of the SDVN architecture were also analyzed, such as infrastructure plane, control plane and application plane of SDVN, architecture modes and access technologies. 
+
+Finally, we present some tools as Mininet-wifi, Ryu controller and SUMO. That tools will be essential for the experiments that we have defined as a proposal for this thesis. The selected tools The chosen tools possess the ability to specify the endpoints in a manner that enables the user to configure the mobility of the host in a specific direction, along with an assigned speed for movement. Additionally, the selected tool should allow for defining the number and frequency of the endpoints. 
+The specified endpoints need to possess the capability to connect to an accessible WiFi network. The chosen tools should offer the functionality to define diverse network topologies for both wireless access points and fixed network entities, along with providing SDN-based OpenFlow interfaces. Furthermore, from the perspective of a software-defined network, the behavior of a defined network component can be controlled and managed by a network controller.
+Considering the aforementioned requirements, we have selected the RYU SDN controller ~\cite{RyuController} to programmatically manage the network topology, and Mininet-WiFi ~\cite{mininet-wifibook} to define the desired network configuration. Additionally, the tool SUMO ~\cite{dlr127994} is being utilized for the graphical representation of the chosen scenario. \ref{selected-tools} illustrates  showcasing the selected tools along with their key properties, which are crucial for emulating the scenarios involving this thesis.
 
 
 
