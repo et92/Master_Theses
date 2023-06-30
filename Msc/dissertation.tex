@@ -840,6 +840,8 @@ Considering the aforementioned requirements, we have selected the RYU SDN contro
 
 
 \section{Introduction}
+\label{Introduction-setupoverview}
+
 
 In this section, we delve into the simulations using the powerful combination of Mininet-WiFi, RYU SDN controller, and SUMO. These tools offer us the capability to create realistic and dynamic scenarios, allowing us to analyze and evaluate the performance of network configurations in various coexistence scenarios. Figure \ref{setup-overview} represents the test setup overview. All the selected tools that are considered to emulate the  scenario are installed on a virtual machine.
 
@@ -847,7 +849,7 @@ By leveraging Mininet-WiFi, we can define and simulate complex wireless network 
 
 The RYU SDN controller plays a crucial role in programmatically controlling the network topology. It provides us with the flexibility to manage and manipulate network flows, routing protocols, and other network parameters. With RYU, we can dynamically adapt and modify the network behavior to simulate different scenarios and evaluate their impact on performance.
 
-To visually represent our selected scenario, we employ SUMO, a tool specialized in traffic simulation. SUMO allows us to model and visualize the movement of vehicles and pedestrians in a realistic manner. By integrating SUMO with Mininet-WiFi and the RYU controller, we can analyze the interactions between different network elements and their impact on overall system performance.
+To visually represent our selected scenario, we employ SUMO, a tool specialized in traffic simulation. SUMO allows us to model and visualize the movement of vehicles in a realistic manner. By integrating SUMO with Mininet-WiFi and the RYU controller, we can analyze the interactions between different network elements and their impact on overall system performance.
 
 By conducting these simulations, we aim to gain valuable insights and make informed decisions regarding network optimization and design.
 
@@ -870,7 +872,243 @@ Let us now delve into the detailed simulations, analyzing the results and drawin
 
 \section{Results}
 
-\subsection{Topology}
+\subsection{Topology - Test Scenario}
+
+We started to define the topology using Mininet-Wifi. The network topology was created based on the scenario explained in Section \ref{Introduction-setupoverview}. A Python script is used to define the Mininet-Wifi topology.
+
+\par
+
+The test scenario consists of a network topology (figure \ref{Topology}) with multiple access points (APs), hosts, mobility nodes and switches. The mobile node moves between three APs (AP1, AP2, and AP3) as it changes its location.
+
+
+\begin{figure}[H]
+\begin{center}
+  \includegraphics[width=1\textwidth]{img/topo.png}
+\end{center}
+  \caption{Topology}
+  \centering  
+  \label{Topology}
+\end{figure}
+
+As we mentioned earlier in the previous section (\ref{Introduction-setupoverview}), for this scenario, the RYU SDN controller is used. To define the RYU as a remote controller as the element of the topology, 
+the code given in Listing 3.1
+is used as the Python topology code. To use the remote controller in Mininet–WiFi, port
+6653 is assigned to the RYU controller defined as “c1”. Since Mininet–WiFi and the SDN
+controller are executed from the same virtual machine/laptop, IP ’127.0.0.1’ is assigned to
+the controller. 
+%Python code highlighting
+
+\begin{lstlisting}[language=Python, caption=Adding Remote Controller RYU]
+
+def Topology(args):
+
+    info("Creating nodes...")
+    
+    net = Mininet_wifi( controller=RemoteController, link=wmediumd, wmediumd_mode=interference)
+    
+    info('Defining to remote controller on port 6653 (L3 switch)\n')
+    c1 = net.addController(name='c1',
+                        controller=RemoteController,
+                        ip='127.0.0.1',
+                        protocol='tcp',
+                        port=6653) #L3
+
+\end{lstlisting}
+
+The topology consists of the following components:
+
+
+Switches:
+
+There are five L3 switches: s1, s2, s3, s4, and s5. They are configured with the OpenFlow version 1.3 protocol. Each switch has a unique datapath ID (DPID) assigned to it. There is one L2 switch: s6. It is connected to AP1, AP2, and AP3.To define the switches, net.addSwitch() with “OpenFlow13” protocol is used, as shown in
+Listing 3.2.
+\par
+The switches being used are OVS (Open vSwitch) switches. Open vSwitch is a virtual switch that is widely used in software-defined networking (SDN) and network virtualization environments. It provides features such as support for the OpenFlow protocol, flexible port configurations, flow-based forwarding, and integration with controller platforms.
+OVS switches are employed to facilitate communication between the hosts, access points, and mobile nodes. The OVS switches, specifically the L3 switches (s1, s2, s3, s4, and s5) and the L2 switch (s6), are configured with the OpenFlow version 1.3 protocol, allowing them to be controlled and programmed by an SDN controller. This enables centralized management and control over the network's forwarding behavior and facilitates the implementation of network policies and routing decisions.
+
+Using OVS switches in this test scenario offers flexibility, scalability, and programmability, making it easier to simulate and evaluate various networking scenarios and mobility-related aspects in a controlled environment.
+
+\par
+\begin{lstlisting}[language=Python, caption=Adding Switch]
+
+    info('Adding L3 switch\n')
+    s1 = net.addSwitch('s1', failMode="standalone", dpid='1', protocols ='OpenFlow13', cls=OVSKernelSwitch)  
+    s2 = net.addSwitch('s2', failMode="standalone", dpid='2', protocols ='OpenFlow13', cls=OVSKernelSwitch)  
+    s3 = net.addSwitch('s3', failMode="standalone", dpid='3', protocols ='OpenFlow13', cls=OVSKernelSwitch)  
+    s4 = net.addSwitch('s4', failMode="standalone", dpid='4', protocols ='OpenFlow13', cls=OVSKernelSwitch)
+    s5 = net.addSwitch('s5', failMode="standalone", dpid='5', protocols ='OpenFlow13', cls=OVSKernelSwitch)
+
+    info('Adding L2 switches\n')
+    s6 = net.addSwitch('s6', failMode="standalone", dpid='6', protocols ='OpenFlow13', cls=OVSKernelSwitch) # L2 Switch Net B (no ip)
+    
+
+\end{lstlisting}
+
+Hosts:
+
+There are five hosts: h1, h2, h3, h4, and h5. They are assigned IP addresses in the range of 192.168.x.10/24, where x represents the host number (1-5). Each host is connected to one of the switches (listing 4.1). The command net.addHost() is used to define the hosts.
+
+Access Points (APs):
+\begin{itemize}
+    \item AP1: It is configured with SSID "ssid-ap1" and operates on channel 1. Its position is at coordinates (448.0, 440.0, 0).
+    \item AP2: It is configured with SSID "ssid-ap2" and operates on channel 1. Its position is at coordinates (647.0, 446.0, 0).
+    \item AP3: It is configured with SSID "ssid-ap3" and operates on channel 6. Its position is at coordinates (1190.0, 450.0, 0). 
+\end{itemize}
+The command net.addStation() is used to define the cars because it has the capability of defining the moving
+functionality and speed of the host. The args() function is used to define the initial location of the
+moving nodes.
+\par
+As shown in listing 4.1 the access points (APs) are configured using OVS (Open vSwitch) bridges. An OVS bridge is a software-based bridge that operates at the data link layer (Layer 2) of the network stack. It provides connectivity between multiple network interfaces and facilitates the forwarding of network traffic.
+
+When configuring an AP using OVSBridge, it means that the access point is utilizing the capabilities of Open vSwitch to handle its network connectivity. OVSBridge allows the AP to connect to multiple virtual or physical interfaces, making it possible to handle traffic from different sources or VLANs.
+
+Regarding the "mode=g" parameter, it is related to the OpenFlow configuration of the OVSBridge. OpenFlow is a protocol that allows communication and control between an SDN controller and the forwarding elements (switches or bridges) in the network. The "mode=g" parameter specifies the bridge mode as "greedy" or "learning" mode.
+
+In "mode=g" (greedy) mode, the OVSBridge actively learns the network topology and MAC addresses of the connected devices. It populates its forwarding table dynamically based on the observed traffic patterns. This mode allows the bridge to adapt and optimize its forwarding behavior based on the observed network traffic.
+
+Using "mode=g" in this context is likely chosen to enable efficient learning and forwarding of traffic within the network. By actively observing and learning the MAC addresses and traffic patterns, the OVSBridge can make more informed forwarding decisions and improve overall network performance.
+
+\begin{lstlisting} [language=Python, caption=Adding Host and Acess Point]
+    info('*** Add hosts/\n')
+    h1 = net.addHost('h1', ip='192.168.1.10/24', mac = '00:00:00:00:00:01', defaultRoute='via 192.168.1.254')
+    h2 = net.addHost('h2', ip='192.168.2.10/24', mac = '00:00:00:00:00:02', defaultRoute='via 192.168.2.254')
+    h3 = net.addHost('h3', ip='192.168.3.10/24', mac = '00:00:00:00:00:03', defaultRoute='via 192.168.3.254')
+    h4 = net.addHost('h4', ip='192.168.4.10/24', mac = '00:00:00:00:00:04', defaultRoute='via 192.168.4.254')
+    h5 = net.addHost('h5', ip='192.168.5.10/24', mac = '00:00:00:00:00:05', defaultRoute='via 192.168.5.254')
+
+    info('*** Add AcessPoints/\n')
+    ap1 = net.addAccessPoint('ap1', ssid='ssid-ap1', mode='g', channel='1', dpid='7',
+                            position='448.0,440.0,0', cls=OVSBridgeAP, protocols ='OpenFlow13')
+    ap2 = net.addAccessPoint('ap2', ssid='ssid-ap2', mode='g', channel='6', dpid='8',
+                            position='647.0,446.0,0', cls=OVSBridgeAP, protocols ='OpenFlow13')
+    ap3 = net.addAccessPoint('ap3', ssid='ssid-ap3', mode='g', channel='11', dpid='9',
+                            position='1190.0,450.0,0', failMode="standalone",  cls=OVSBridgeAP, protocols ='OpenFlow13')
+\end{lstlisting}
+
+Mobile Node:
+
+There are three mobile nodes denominated: mov, mov2, and mov3 (listing 3.4). They are assigned IP addresses in the range of 192.168.11.x/24 and 192.168.20.11/24. The mobile node mov moves between AP1, AP2, and AP3. Its initial position is (452.0, 600.0, 0), and it follows a predefined trajectory.
+
+\begin{lstlisting}[language=Python, caption=Adding Mobile Node] 
+    info('*** stations/\n')
+    mov=  net.addStation('mov',  ip='192.168.11.11/24', defaultRoute='via 192.168.11.254', position='452.0,600.0,0')
+    mov2= net.addStation('mov2', ip='192.168.11.12/24', defaultRoute='via 192.168.11.254',  position='626.0,600.0,0')
+    mov3= net.addStation('mov3', ip='192.168.20.11/24', defaultRoute='via 192.168.20.254',  position='1200.0,600.0,0')
+    
+\end{lstlisting}
+
+As shown in   Listing 3.5, after creating the network switches, hosts and APs, the connectivity links are created using net.addLink(). We also initialized the controller, defined the ip and mac, and configured the mobility of the nodes.
+\begin{lstlisting}[language=Python, caption= Parameters to complete the topology] 
+    info("*** Configuring wifi nodes\n")
+    net.configureWifiNodes()
+
+    if '-p' not in args:
+                net.plotGraph(max_x=1550, max_y=1550)
+        if '-c' in args:
+        mov.coord = ['20.0,60.0,0.0', '30.0,60.0,0.0', '31.0,30.0,0.0']
+        mov2.coord = ['20.0,60.0,0.0', '30.0,60.0,0.0', '31.0,30.0,0.0']
+    net.startMobility(time=0, mob_rep=1, reverse=True)
+    p1, p2= dict(), dict()
+    if '-c' not in args:
+                p1 = {'position': '20.0,60.0,0.0'}
+                p2 = {'position': '210.0,60.0,0.0'}       
+    net.mobility(mov, 'start', time=1, **p1)
+    net.mobility(mov, 'stop', time=222, **p1)
+    net.stopMobility(time=230)
+    
+    net.auto_association()
+    info('*** Associating and Creating Add links\n')
+
+    net.addLink(s1, s2,1,1)
+    ...
+    info('\nSetting up of IP addresses in the SW\n')
+    s1.setIP('10.0.0.1/24', intf='s1-eth1')
+    
+    info('Setting MAC addresses to switches')
+    s1.setMAC('10:00:00:00:01:10', 's1-eth1')
+    ...
+    
+    info("*** Starting APs\n", "*** Starting network\n")
+    net.build()
+    for controller in net.controllers:
+        controller.start()
+    info('*** Starting switches/APs\n')
+    s1.start([c1])
+    ...
+    ap1.start([c1])
+    ...
+    CLI(net) # Start command line
+    net.stop() # Stop Network
+
+if __name__ == '__main__':
+    setLogLevel('info')
+    Topology(sys.argv)
+
+\end{lstlisting}
+
+Overall, that's the way to create a topology in Mininet-wifi. We'll see how to run the topology and the controller  and we'll make some tests of traffic engineering in the subsection (\ref{Tests}).
+
+\subsection {Ryu Controller}
+
+Ryu SDN controller has my choice to achieve the goals for this project and is located at
+/home/parallels/Documents/Master\_Theses/sw/L3ext.py.  Although I initially have this ryu example available(/ryu/app/simple\_switch\_13.py). I have made some changes to it to ensure we understand all the code and simplify the switch logic based on the proposed objective.
+
+The \textbf{simple\_switch\_13} available on Ryu is an application that runs on the controller that controls the OVSSwitch. It is composed basically of one class and three primitives. The class has one object with - at this part - one attribute called \textbf{mac\_to\_port} that represents the MAC table of the switch.
+\par
+The first primitive \textbf{switch\_features\_handler} is used during the handshake between the controller and the switch to configure the communication\cite{ryubook}. In this part installed a flow with the lowest priority possible - zero - to send the packet to the controller. When the packet arrives at the switch and there are no matches, it is sent to the controller to handle the packet correctly. We added an injection in the switch a flow to drop IPv6 packets at this part of the code.
+\par
+The following one id the \textbf{add\_flow} that is a primitive to inject a flow in the table of the switch. To inject a flow is necessary to inform the priority, the datapath to the switch extracted from the packet, the match expected and the action to be taken if the match occurs.
+\par
+The last one is  \textbf{\_packet\_in\_handler} that handles packets that comes from the switch to the controller that is explained below: 
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=10cm]{img/controllerdiagram.png}
+\caption{Packet-In event}
+\label{Packet-in}
+\end{figure}
+
+The switch must learn the port for the source MAC address whenever an \textbf{Packet In} event occurs (the switch asks the controller what to do with the packet). If the destination MAC address is not inside the MAC table (python dictionary), the controller must trigger a flood to all ports on that switch. Otherwise, if the destination MAC address is inside the MAC table, the switch must forward the packet to the specific port related to the destination and the controller adds a flow in the switch so for the next time this source-destination packet occurs, the Packet-In event will not be triggered again. The behavior could be easier understandable by looking at Figure \ref{Packet-in}. 
+
+
+
+
+
+\subsection{Dry-Run}
+
+The first step is to ensure that we don't have any other containers running on the system:
+%Python code highlighting
+\begin{lstlisting}[language=Python, caption=Cleaning system environment]
+sudo mn --clean or sudo mn -c
+\end{lstlisting}
+
+With this command, Mininet-Wifi will stop any running controller and release any network interface used before. 
+\par
+
+The second step is to start the Ryu controller on port 6653 for layer[2-3] switches invoking ryu-manager with this command:
+%Python code highlighting
+\begin{lstlisting}[language=Python, caption=Starting Ryu controller on port 6653]
+ryu-manager L3ext.py --ofp-tcp-listen-port 6653
+\end{lstlisting}
+
+"ryu-manager": This is the command to start the Ryu controller. 
+
+"L3ext.py": This is the name of the Python script or module that contains the implementation of the "L3ext" application. The "L3ext" application is an application that extends the functionality of the Ryu controller for Layer 3 (network layer) operations, such as routing or IP forwarding.
+
+"--ofp-tcp-listen-port 6653": This is an optional parameter for specifying the OpenFlow TCP listening port. OpenFlow is a protocol that allows the Ryu controller to communicate and control OpenFlow-enabled switches in an SDN environment. By setting the OpenFlow TCP listening port to 6653, the Ryu controller will listen for incoming OpenFlow connections on that specific port.
+
+
+
+Then we are ready to start the Mininet-Wifi with our topology with the command:
+%Python code highlighting
+\begin{lstlisting}[language=Python, caption=Starting Mininet-Wifi]
+sudo python3 tp_mob.py
+\end{lstlisting}
+
+\subsection{Tests/Traffic engeneering}
+\label{Tests}
+
+It runs on both topology and controllers. Start Wireshark with root privileges so that traffic on the links of the created topology can be analyzed and dumpflows command to see the traffic trajectory on the switchs and APs. At opcional same time, we will use tcpdump commands to analyze traffic.
 
 
 
@@ -878,7 +1116,16 @@ Let us now delve into the detailed simulations, analyzing the results and drawin
 
 
 
-\section{Illustrative tests of solution operation}
+\begin{figure}[H]
+\begin{center}
+  \includegraphics[width=1\textwidth]{img/startingRyu.png}
+\end{center}
+  \caption{Starting Ryu controller on port 6653}
+  \centering  
+  \label{startingRyu}
+\end{figure}
+
+
 %\section{Images}
 
 
