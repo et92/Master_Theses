@@ -58,9 +58,21 @@ mininet-wifi> py mov.wintfs[0].freq
 mininet-wifi> py mov.wintfs[0].mode
 g
 
+car0.cmdPrint("sudo vlc -vvv bunnyMob.mp4 --sout '#duplicate{dst=rtp{dst=200.0.10.2,port=5004,mux=ts},dst=display}' :sout-keep &")
+client.cmdPrint("sudo vlc rtp://@200.0.10.2:5004 &")
 
 #!/bin/sh
 # session hook script; write commands here to execute on the host at the
 # specified state
 BRIFNAME=$(find /sys/devices/virtual/net -name 'enp0s5' | awk -F '[/:]' '{print $6}') 
 ip addr add 172.16.0.254/24 dev $BRIFNAME
+
+sed -i 's/geteuid/getppid/' /usr/bin/vlc
+
+Explanation: The initialization script check if the UID is equals to zero. Zero is reserved for the root user. Using sed to replace geteuid for getppid fools the initialization script because it is always > 0.
+
+While running the VLC as root is not recommended, it works. Be aware of the risks and obviously do not do it for production environments.
+
+For Freebsd and other finicky unices and macos use the proper full syntax:
+
+sed -i '' 's/geteuid/getppid/' /usr/local/bin/vlc
