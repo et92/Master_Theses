@@ -14,20 +14,20 @@ from mn_wifi.associationControl import AssociationControl
 from mn_wifi.link import wmediumd,mesh
 from mn_wifi.link import adhoc
 from mn_wifi.sumo.runner import sumo
-from mn_wifi.net import Mininet_wifi
+from mn_wifi.net import Mininet_wifi, ITSLink
 from mn_wifi.node import OVSKernelAP, UserAP, OVSBridgeAP, OVSAP
 from mn_wifi.wmediumdConnector import interference
 
 import threading
 import time
 
-        
+       
 def Topology(args):
     os.system ('sudo ufw disable')
     os.system('service network-manager stop')
     info("Creating nodes...")
     
-    net = Mininet_wifi( controller=RemoteController, link=wmediumd, wmediumd_mode=interference, accessPoint=OVSBridgeAP,)
+    net = Mininet_wifi( controller=RemoteController, link=wmediumd, wmediumd_mode=interference, accessPoint=UserAP,)
    
     info('Defining to remote controller on port 6653 (L3 switch)\n')
     c1 = net.addController(name='c1',
@@ -37,32 +37,41 @@ def Topology(args):
                         port=6653) #L3
     
     info("*** Creating nodes: car\n")
-    #cars = []
-    """ for id in range(0, 3):
+    
+    cars = []
+    for id in range(0, 3):
         cars.append(net.addCar('car%s' % (id + 1), wlans=2, encrypt='wpa2,'))
-     """
-   
-    info('*** stations/\n')
-    car1= net.addCar('car1',ip='192.168.11.11/24', defaultRoute='via 192.168.11.254', wlans=1, encrypt='wpa2',)
-    car2= net.addCar('car2', ip='192.168.11.12/24', defaultRoute='via 192.168.11.254',  wlans=1, encrypt='wpa2',)
-    car3= net.addCar('car3', ip='192.168.20.11/24', defaultRoute='via 192.168.20.254', wlans=1, encrypt='wpa2',)
-
-
-    """ info("*** Creating nodes: rsu\n")
+    
+    info("*** Creating nodes: rsu\n")
     rsus = []
     for id in range(0, 3):
         rsus.append(net.addCar('rsu%s' % (id + 1), wlans=2, encrypt='wpa2,'))
-    """
+
+    """ nodes_data = [
+    {'name': 'car1', 'ip': '192.168.11.11/24', 'defaultRoute': 'via 192.168.11.254', 'wlans': 2, 'encrypt': 'wpa2'},
+    {'name': 'car2', 'ip': '192.168.11.12/24', 'defaultRoute': 'via 192.168.11.254', 'wlans': 2, 'encrypt': 'wpa2'},
+    {'name': 'car3', 'ip': '192.168.20.11/24', 'defaultRoute': 'via 192.168.20.254', 'wlans': 2, 'encrypt': 'wpa2'}
+    ]
+
+    cars = []
+    for node_data in nodes_data:
+        cars.append(net.addCar(node_data['name'], ip=node_data['ip'], defaultRoute=node_data['defaultRoute'], wlans=node_data['wlans'], encrypt=node_data['encrypt']))
+ """
+    """ info('*** stations/\n')
+    car1= net.addCar('car1', ip='192.168.11.11/24', defaultRoute='via 192.168.11.254', wlans=1, encrypt='wpa2',)
+    car2= net.addCar('car2', ip='192.168.11.12/24', defaultRoute='via 192.168.11.254',  wlans=1, encrypt='wpa2',)
+    car3= net.addCar('car3', ip='192.168.20.11/24', defaultRoute='via 192.168.20.254', wlans=1, encrypt='wpa2',)
+     """
 
 
-    poss = ['200.00,200.00,0.0', '400.00,200.00,0.0', '600.00,200.00,0.0']
-    ap1 = net.addAccessPoint('ap1', ssid='ap1-ssid', mac='00:00:00:11:00:01',
+    poss = ['2600.00,3500.00,0.0', '2800.00,3500.00,0.0', '3000.00,3500.00,0.0']
+    ap1 = net.addAccessPoint('ap1', ssid='ap-ssid', mac='00:00:00:11:00:01',
                             mode='g', channel='1', passwd='123456789a',
                             encrypt='wpa2', position=poss[0])
-    ap2 = net.addAccessPoint('ap2', ssid='ap2-ssid', mac='00:00:00:11:00:02',
+    ap2 = net.addAccessPoint('ap2', ssid='ap-ssid', mac='00:00:00:11:00:02',
                             mode='g', channel='6', passwd='123456789a',
                             encrypt='wpa2', position=poss[1])
-    ap3 = net.addAccessPoint('ap3', ssid='ap3-ssid', mac='00:00:00:11:00:03',
+    ap3 = net.addAccessPoint('ap3', ssid='ap-ssid', mac='00:00:00:11:00:03',
                             mode='g', channel='11', passwd='123456789a',
                             encrypt='wpa2', position=poss[2])
     
@@ -96,12 +105,13 @@ def Topology(args):
     """
     info("*** Adding link\n")
     
-    """  net.addLink(rsus[0], rsus[1])
-    net.addLink(rsus[1], rsus[2])
-
+   
     #Experimental, apagar depois
-    net.addLink(ap1, ap2)
-    net.addLink(ap2, ap3) """
+    info("*** Adding link\n")
+    net.addLink(rsus[0], rsus[1])
+    net.addLink(rsus[1], rsus[2])
+    net.addLink(ap1, ap2,2,2)
+    net.addLink(ap2, ap3,3,2) 
    
     #net.auto_association()
     info('*** Associating and Creating Add links\n')
@@ -124,21 +134,17 @@ def Topology(args):
     net.addLink(s6,ap2,3,1)
     net.addLink(s2,ap3,5,1)
 
-   
-
-    """ for rsu in rsus:
+    """ for car in net.cars:
+        net.addLink(car, intf=car.wintfs[0].name,
+                    cls=ITSLink, band=20, channel=181)
+ """
+    for rsu in rsus:
         net.addLink(rsu, intf=rsu.wintfs[1].name,
-                    cls=mesh, ssid='mesh-ssid', channel=5) """
-    """ 
+                    cls=mesh, ssid='mesh-ssid', channel=5)
+
     for car in cars:
         net.addLink(car, intf=car.wintfs[1].name,
                     cls=mesh, ssid='mesh-ssid', channel=5)
-     """ 
-    
-    # Add wireless mesh links between car1, car2, and car3 interfaces
-    for car in [car1, car2, car3]:
-        net.addLink(car, intf=car.wintfs[0].name, cls=mesh, ssid='mesh-ssid', channel=5)
-
 
     info("*** Starting sumo\n")
     # change config_file name if you want
@@ -155,6 +161,20 @@ def Topology(args):
     info("*** Starting network\n")
 
     net.build()
+
+    """ for rsu in net.aps:
+        rsu.start([])
+
+
+    subnet1 = '192.168.11'
+    subnet2 = '192.168.20'
+
+    for id, car in enumerate(net.cars):
+        if id < 2:  # Assign subnet1 to the first two nodes
+            car.setIP('{}.{}{}'.format(subnet1, id + 11, '/24'), intf='{}-wlan0'.format(car))
+        else:  # Assign subnet2 to the third node
+            car.setIP('{}.{}{}'.format(subnet2, id + 9, '/24'), intf='{}-wlan0'.format(car))
+ """
     for controller in net.controllers:
         controller.start()
 
@@ -164,43 +184,49 @@ def Topology(args):
     s3.start([c1])
     s4.start([c1])
     s5.start([c1])
-    s6.start([])
+    s6.start([c1])
     ap1.start([c1])
     ap2.start([c1])
     ap3.start([c1])
 
-    """ for rsu in rsus:
-        rsu.setIP('192.168.11.%s/24' % (int(rsus.index(rsu)) + 101),
-                  intf='%s-wlan0' % rsu)
-        rsu.setIP('192.168.20.%s/24' % (int(rsus.index(rsu)) + 101),
-                  intf='%s-mp1' % rsu)
     
+    for idx, car in enumerate(cars):
+        if idx < 2:
+            car.setIP('192.168.11.%s/24' % (idx + 11), intf='%s-wlan0' % car)
+            car.setIP('192.168.0.%s/24' % (idx + 111), intf='%s-mp1' % car)
+            car.cmd('ifconfig %s-wlan0 up' % car)
+            car.cmd('ifconfig %s-mp1 up' % car)
+            car.cmd('ip route add default via 192.168.11.254')
+            
+        else:
+            car.setIP('192.168.20.%s/24' % (idx + 9), intf='%s-wlan0' % car)
+            car.setIP('192.168.0.%s/24' % (idx + 111), intf='%s-mp1' % car)
+            car.cmd('ifconfig %s-wlan0 up' % car)
+            car.cmd('ifconfig %s-mp1 up' % car)
+            car.cmd('ip route add default via 192.168.20.254')
+   
+    for idx, rsu in enumerate(rsus):
+        if idx < 2:
+            rsu.setIP('192.168.11.%s/24' % (idx + 101), intf='%s-wlan0' % rsu)
+            rsu.setIP('192.168.0.%s/24' % (idx + 101), intf='%s-mp1' % rsu)
+            rsu.cmd('ip route add default via 192.168.11.254')
+            rsu.cmd('ip link set %s-wlan0 up' % rsu)
+            rsu.cmd('ip link set %s-mp1 up' % rsu)
+    
+        else:
+            rsu.setIP('192.168.20.%s/24' % (idx + 101),intf='%s-wlan0' % rsu)
+            rsu.setIP('192.168.0.%s/24' % (idx + 101),intf='%s-mp1' % rsu)
+            rsu.cmd('ip route add default via 192.168.20.254')
+
     for rsu, pos in zip(rsus, poss):
         rsu.setPosition(pos=pos)
-    """
 
-    """  car1.setIP('192.168.11.11/24', intf='car1-wlan0')
-    car2.setIP('192.168.11.12/24', intf='car2-wlan0')
-    car3.setIP('192.168.20.11/24', intf='car3-wlan0') """
-
-    car1.cmd('ip route add default via 192.168.11.254')
-    car2.cmd('ip route add default via 192.168.11.254')
-    car3.cmd('ip route add default via 192.168.20.254')
     
-    
-    """
-    for car in cars:
-        car.setIP('192.168.11.%s/24' % (int(cars.index(car)) + 1),
-                  intf='%s-wlan0' % car)
-         car.setIP('192.168.1.%s/24' % (int(cars.index(car)) + 1),
-                  intf='%s-mp1' % car) """
-
-    info("*** Starting telemetry\n")
     # Track the position of the nodes
     nodes = net.cars + net.aps
     net.telemetry(nodes=nodes, data_type='position',
-                  min_x=0, min_y=0,
-                  max_x=1000, max_y=1000)
+                  min_x=2200, min_y=2800,
+                  max_x=3200, max_y=3900) 
     
     """ info("*** Starting agents\n")
     for car in net.cars:
@@ -209,8 +235,33 @@ def Topology(args):
                     '--log -srnm --filename %s --name=%s --verbose --rsu &' % (car, car))
         else:
             car.cmd('xterm -e python3 -m network_agent --name=%s -srmn --verbose &' % car)
+ """
+    """  car1.setIP('192.168.11.11/24', intf='car1-wlan0')
+    car2.setIP('192.168.11.12/24', intf='car2-wlan0')
+    car3.setIP('192.168.20.11/24', intf='car3-wlan0') """
+
+    #car1.cmd('ip route add default via 192.168.11.254')
+    #car2.cmd('ip route add default via 192.168.11.254')
+    #car3.cmd('ip route add default via 192.168.20.254')
+    
+    
     """
-     
+    for car in cars:
+        car1.setIP('192.168.11.11/24', intf='car1-wlan0')
+        car2.setIP('192.168.11.12/24', intf='car2-wlan0')
+        car3.setIP('192.168.20.11/24', intf='car3-wlan0')
+         car.setIP('192.168.1.%s/24' % (int(cars.index(car)) + 201),
+                  intf='%s-mp1' % car) """
+
+  
+    info("*** Starting agents\n")
+    for car in net.cars:
+        if car.name in [rsu.name for rsu in rsus]:
+            car.cmd('xterm -e python3 -m network_agent '
+                    '--log -srnm --filename %s --name=%s --verbose --rsu &' % (car, car))
+        else:
+            car.cmd('xterm -e python3 -m network_agent --name=%s -srmn --verbose &' % car)
+
     info('Setting MAC addresses to switches')
     s1.setMAC('10:00:00:00:01:10', 's1-eth1')
     s1.setMAC('10:00:00:00:01:20', 's1-eth2')
@@ -282,20 +333,26 @@ def Topology(args):
     #ap2.setIP('192.168.11.4/24', intf='ap2-eth1')
     #ap3.setIP('192.168.20.253/24', intf='ap3-eth1')
 
+
     ap1.cmd('sysctl net.ipv4.ip_forward=1')
-    ap1.cmd('route add -net 192.168.11.0/24 dev ap1-wlan1') #Aqui esta a fazer os AP funcionarem com as stations
-    ap2.cmd('route add -net 192.168.11.0/24 dev ap1-wlan1') #Aqui esta a fazer os AP funcionarem com as stations
-    ap3.cmd('route add -net 192.168.20.0/24 dev ap3-wlan1') #Aqui esta a fazer os AP funcionarem com as stations
+    #ap1.cmd('route add -net 192.168.11.0/24 dev ap1-wlan1') #Aqui esta a fazer os AP funcionarem com as stations
+    #ap2.cmd('route add -net 192.168.11.0/24 dev ap1-wlan1') #Aqui esta a fazer os AP funcionarem com as stations
+    #ap3.cmd('route add -net 192.168.20.0/24 dev ap3-wlan1') #Aqui esta a fazer os AP funcionarem com as stations
+    
+    ap1.cmd('route add default gw 192.168.11.254')  # The gateway for AP1 is s1
+    ap2.cmd('route add default gw 192.168.11.254')  # The gateway for AP2 is s1
+    ap3.cmd('route add default gw 192.168.20.254')  # The gateway for AP3 is s2
 
-    car1.cmd('ip route add default via %s' % s1.IP(intf='s1-eth5'))
-    car3.cmd('ip route add default via %s' % s2.IP(intf='s2-eth5'))
-    ap1.cmd('route add -net 192.168.1.0/24 dev ap1-wlan1') #nexthop
 
 
+    cars[0].cmd('ip route add default via %s' % s1.IP(intf='s1-eth5'))
+    cars[1].cmd('ip route add default via %s' % s1.IP(intf='s1-eth5'))
+    cars[2].cmd('ip route add default via %s' % s2.IP(intf='s2-eth5'))
+    #ap1.cmd('route add -net 192.168.1.0/24 dev ap1-wlan1')  # nexthop
 
     h1.cmd('route add -net 192.168.11.0/24 via 192.168.1.254')
     
-    car1.cmd('route add -net 192.168.1.0/24 via 192.168.11.254')
+    #car1.cmd('route add -net 192.168.1.0/24 via 192.168.11.254')
     
 
 
