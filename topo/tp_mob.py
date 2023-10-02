@@ -62,9 +62,7 @@ def Topology(args):
 
     info('Adding L2 switches\n')
     s6 = net.addSwitch('s6', failMode="standalone", dpid='6', protocols ='OpenFlow13', cls=OVSKernelSwitch) # L2 Switch Net B (no ip)
-    #s6 = net.addSwitch('s6', cls=OVSSwitch, failMode="standalone", dpid='0000000000000006', protocols ='OpenFlow13') # L2 Switch Net B (no ip)
 
-    
     info('*** Add hosts/\n')
     h1 = net.addHost('h1', ip='192.168.1.10/24', mac = '00:00:00:00:00:01', defaultRoute='via 192.168.1.254')
     h2 = net.addHost('h2', ip='192.168.2.10/24', mac = '00:00:00:00:00:02', defaultRoute='via 192.168.2.254')
@@ -72,15 +70,6 @@ def Topology(args):
     h4 = net.addHost('h4', ip='192.168.4.10/24', mac = '00:00:00:00:00:04', defaultRoute='via 192.168.4.254')
     h5 = net.addHost('h5', ip='192.168.5.10/24', mac = '00:00:00:00:00:05', defaultRoute='via 192.168.5.254')
 
-    h7 = net.addHost('h7', ip='192.168.11.7/24', mac = '00:00:00:00:00:77', defaultRoute='via 192.168.11.254')
-    h8 = net.addHost('h8', ip='192.168.20.8/24', mac = '00:00:00:00:00:88', defaultRoute='via 192.168.20.254')
-
-    info('*** stations/\n')
-    mov=  net.addStation('mov',  ip='192.168.11.11/24',  position='452.0,600.0,0', mac = '00:00:00:00:00:07',wlans=1, defaultRoute='via 192.168.11.254')
-    mov2= net.addStation('mov2', ip='192.168.11.12/24',  position='626.0,600.0,0', mac = '00:00:00:00:00:08',wlans=1, defaultRoute='via 192.168.11.254')
-    mov3= net.addStation('mov3', ip='192.168.20.11/24',  position='1200.0,600.0,0',mac = '00:00:00:00:00:09',wlans=1, defaultRoute='via 192.168.20.254')
-    #s7 = net.addSwitch('s2', cls=OVSSwitch, dpid='0000000000000007') # L2 Switch Net C (no ip)
-    
     info('*** Add AcessPoints/\n')
 
     ap1 = net.addAccessPoint('ap1', ssid='ssid-ap1', mode='g', channel='1', dpid='7', wlans=1, mac = '00:00:00:00:00:11',
@@ -114,6 +103,15 @@ def Topology(args):
 
     ap3 = net.addAccessPoint('ap3', ssid='ssid-ap3', mode='g', channel='11', dpid='9',
                             position='1190.0,450.0,0', failMode="standalone",  cls=OVSBridgeAP, protocols ='OpenFlow13')
+
+    #h7 = net.addHost('h7', ip='192.168.11.7/24', mac = '00:00:00:00:00:77', defaultRoute='via 192.168.11.22', position='33,60,0')
+
+    info('*** stations/\n')
+    mov=  net.addStation('mov',  ip='192.168.11.11/24', defaultRoute='via 192.168.11.254', position='452.0,600.0,0')
+    mov2= net.addStation('mov2', ip='192.168.11.12/24', defaultRoute='via 192.168.11.254',  position='626.0,600.0,0')
+    mov3= net.addStation('mov3', ip='192.168.20.11/24', defaultRoute='via 192.168.20.254',  position='1200.0,600.0,0')
+    
+    
     #net.setAssociationCtrl(ac='ssf')
     #net.auto_association()
 
@@ -124,7 +122,7 @@ def Topology(args):
     if '-p' not in args:
                 net.plotGraph(max_x=1550, max_y=1550)
 
-
+    
     """ if '-c' in args:
         mov.coord = ['20.0,60.0,0.0', '30.0,60.0,0.0', '31.0,30.0,0.0']
         mov2.coord = ['20.0,60.0,0.0', '30.0,60.0,0.0', '31.0,30.0,0.0']
@@ -645,7 +643,4 @@ def Topology(args):
 
 if __name__ == '__main__':
     setLogLevel('info')
-    args = sys.argv
-    Topology(args)
-
 

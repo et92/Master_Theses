@@ -36,3 +36,10 @@ Lembre-se de substituir <bridge> pelo nome da ponte que você está usando,
 
 
 
+--sout "#std{access=file,mux=mp4,dst=output.mp4}"
+
+or for both destinations (display and file)
+
+--sout "#duplicate{dst=display,dst=std{access=file,mux=mp4,dst=output.mp4}}"
+
+
