@@ -1,5 +1,4 @@
-from threading import Thread
-
+from scapy.all import *
 from nis import match
 from ryu.base import app_manager
 from ryu.controller import ofp_event, mac_to_port
@@ -32,6 +31,7 @@ from ryu.lib import dpid as dpid_lib
 from ryu.lib import stplib
 
 from collections import defaultdict
+from ryu.lib import addrconv
 
 #from newtwork_graph import NetworkGraph
 
@@ -43,6 +43,7 @@ import random, time
 import ipaddress
 
 # Define IPv4 addresses to each port of each switch
+
 # {DPID:{PORT: IP}}
 #interface_port_to_ip = {1: {1: '192.168.1.254', 2: '192.168.2.254', 3: '192.168.3.254'}}
 
@@ -52,48 +53,53 @@ interface_port_to_ip = {1: {1: '10.0.0.1', 2: '192.168.1.254', 3: '10.0.3.1', 4:
                         3: {1: '10.0.3.2', 2: '192.168.3.254', 3: '10.0.5.2'},
                         4: {1: '10.0.6.2', 2: '192.168.4.254', 3: '10.0.4.1'},
                         5: {1: '10.0.5.1', 2: '10.0.4.2', 3: '10.0.2.2', 4: '10.0.1.2', 5: '192.168.5.254'},
-                        #6: {1: '192.168.11.253', 2: '192.168.11.252', 3: '192.168.11.251'},
+                        6: {},
                         
                         7: {1:'192.168.11.11'}, #qd tiro esse DPi H1 not pinga mov
-                        8: {1: '192.168.11.11'},
-                        9: {2:'192.168.20.11'}
+                        8: {1:'192.168.11.12'},
+                        9: {1:'192.168.20.11'}
                         }
 
 ## {DPID:{('ip_src', port_in, 'ip_dst', port_out, priority)}
 lista_sw_id ={
-            1: (('192.168.1.10', 2, '192.168.4.10', 3, 500), ('192.168.1.10', 2, '192.168.4.10', 3, 500),
-                ('192.168.1.10', 2, '192.168.5.10', 3, 500), ('192.168.5.10', 3, '192.168.1.10', 2, 500),
-                ('192.168.1.10', 2, '192.168.3.10', 3, 500), ('192.168.3.10', 3, '192.168.1.10', 2, 500),
-                ('192.168.1.10', 2, '192.168.2.10', 1, 500), ('192.168.2.10', 1, '192.168.1.10', 2, 500),
+            1: (('192.168.1.10', 2, '192.168.4.10', 3, 2), ('192.168.1.10', 2, '192.168.4.10', 3, 2),
+                ('192.168.1.10', 2, '192.168.4.10', 1, 1), ('192.168.1.10', 2, '192.168.4.10', 1, 1),
+                ('192.168.1.10', 2, '192.168.5.10', 3, 11), ('192.168.5.10', 3, '192.168.1.10', 2, 11),
+                ('192.168.1.10', 2, '192.168.3.10', 3, 11), ('192.168.3.10', 3, '192.168.1.10', 2, 11),
+                ('192.168.1.10', 2, '192.168.2.10', 1, 11), ('192.168.2.10', 1, '192.168.1.10', 2, 11),
+                ('192.168.1.10', 2, '192.168.11.11',5, 51), ('192.168.11.11',5, '192.168.1.10',2, 51),
+                ('192.168.1.10', 2, '192.168.11.12',5, 51), ('192.168.11.12',5, '192.168.1.10',2, 51),
+                ('192.168.20.8', 1, '192.168.11.7', 5, 11), ('192.168.11.7',5, '192.168.20.8',1, 11),
                 #('192.168.11.11',5, '192.168.4.10', 1, 1), ('192.168.4.10', 1,'192.168.11.11', 5, 1),
-               # ('192.168.11.3',5, '192.168.4.10', 1, 1), ('192.168.4.10', 1,'192.168.11.3', 5, 1),
+                #('192.168.11.3',5, '192.168.4.10', 1, 1), ('192.168.4.10', 1,'192.168.11.3', 5, 1),
                 #('192.168.11.11',5, '192.168.1.10', 2, 5), ('192.168.1.10', 2,'192.168.11.11', 5, 5),
-                ('192.168.11.11', 5, '192.168.20.11', 1, 500), ('192.168.20.11', 1, '192.168.11.10', 5, 500)),
+                ('192.168.11.11', 5, '192.168.20.11', 1, 1), ('192.168.11.11', 5, '192.168.20.11', 1, 1)),
 
-            2: (('192.168.1.10', 4, '192.168.4.10', 3, 504), ('192.168.4.10', 3, '192.168.1.10', 4, 504),
+            2: (('192.168.1.10', 4, '192.168.4.10', 3, 2), ('192.168.4.10', 3, '192.168.1.10', 4, 2),
+                ('192.168.1.10', 1, '192.168.4.10', 3, 1), ('192.168.4.10', 3, '192.168.1.10', 1, 1),
                 ('192.168.11.11',1, '192.168.4.10', 3, 500), ('192.168.4.10', 3, '192.168.11.11',1, 500),
-                ('192.168.11.11',1, '192.168.20.11', 5, 5), ('192.168.20.11', 5, '192.168.11.11',1, 5),
-                ('192.168.20.11',5, '192.168.4.10', 3, 500), ('192.168.20.11',5, '192.168.4.10',3, 500),
-                ('192.168.11.253', 1, '192.168.4.10', 3, 500), ('192.168.4.10', 1, '192.168.11.253', 1, 500)),
+                ('192.168.20.11',5, '192.168.11.11', 1, 5), ('192.168.20.11', 5, '192.168.11.11',1, 5),
+                ('192.168.20.11',5, '192.168.4.10', 3, 1), ('192.168.20.11',5, '192.168.4.10',3, 1),
+                ('192.168.20.8',5, '192.168.11.7', 1, 1), ('192.168.11.7',1, '192.168.20.8',5, 1),
+                ('192.168.11.7', 1, '192.168.4.10', 3, 1), ('192.168.4.10', 1, '192.168.11.7', 1, 2)),
 
-            3: (('192.168.1.10', 1, '192.168.4.10', 3, 500), ('192.168.4.10', 3, '192.168.1.10', 1, 500),
-                ('192.168.1.10', 3, '192.168.3.10', 2, 500), ('192.168.3.10', 2, '192.168.1.10', 3, 500),
-                ('192.168.1.10', 1, '192.168.2.10', 3, 500), ('192.168.2.10', 3, '192.168.1.10', 1, 500),
-                ('192.168.1.10', 1, '192.168.5.10', 3, 500), ('192.168.5.10', 3, '192.168.1.10', 1, 500),
+            3: (('192.168.1.10', 1, '192.168.4.10', 3, 3), ('192.168.4.10', 3, '192.168.1.10', 1, 3),
+                ('192.168.1.10', 3, '192.168.3.10', 2, 1), ('192.168.3.10', 2, '192.168.1.10', 3, 1),
+                ('192.168.1.10', 1, '192.168.2.10', 3, 1), ('192.168.2.10', 3, '192.168.1.10', 1, 1),
+                ('192.168.1.10', 1, '192.168.5.10', 3, 1), ('192.168.5.10', 3, '192.168.1.10', 1, 1),
                 ('192.168.11.11',1, '192.168.4.10', 3, 500), ('192.168.4.10', 3, '192.168.11.11',1, 500)),
-    
 
-            4: (('192.168.4.10', 2, '192.168.1.10', 3, 500), ('192.168.4.10', 2, '192.168.1.10', 3, 500),
-                ('192.168.4.10', 2, '192.168.11.11',1, 500), ('192.168.11.11', 1, '192.168.4.10',2, 500),
+            4: (('192.168.4.10', 2, '192.168.1.10', 1, 5), ('192.168.4.10', 2, '192.168.1.10', 1, 5),
+                ('192.168.4.10', 2, '192.168.1.10', 3, 1), ('192.168.4.10', 2, '192.168.1.10', 3, 1),
+                ('192.168.4.10', 2, '192.168.11.11',1, 1), ('192.168.11.11', 1, '192.168.4.10',2, 500),
                 #('192.168.4.10', 2, '192.168.11.11',1, 2), ('192.168.11.11', 1, '192.168.4.10',2, 2),
-                ('192.168.4.10', 2, '192.168.11.3',1, 500), ('192.168.11.3', 1, '192.168.4.10',2, 500),
-                ('192.168.4.10', 2, '192.168.20.11',1, 500), ('192.168.4.10', 2, '192.168.20.11',1, 500)),
+                ('192.168.4.10', 2, '192.168.11.3',1, 1), ('192.168.11.3', 1, '192.168.4.10',2, 500),
+                ('192.168.4.10', 2, '192.168.20.11',1, 1), ('192.168.4.10', 2, '192.168.20.11',1, 1)),
 
-            5: (('192.168.1.10', 1, '192.168.4.10', 2, 500), ('192.168.4.10', 2, '192.168.1.10', 1, 500),
-                ('192.168.1.10', 4, '192.168.3.10', 1, 500), ('192.168.3.10', 1, '192.168.1.10', 4, 500),
-                ('192.168.1.10', 1, '192.168.2.10', 3, 500), ('192.168.2.10', 3, '192.168.1.10', 1, 500)),
+            5: (('192.168.1.10', 1, '192.168.4.10', 2, 1), ('192.168.4.10', 2, '192.168.1.10', 1, 1),
+                ('192.168.1.10', 4, '192.168.3.10', 1, 1), ('192.168.3.10', 1, '192.168.1.10', 4, 1),
+                ('192.168.1.10', 1, '192.168.2.10', 3, 1), ('192.168.2.10', 3, '192.168.1.10', 1, 1)),
 
-            
             # 6: (('192.168.11.11', 2, '192.168.4.10', 1, 1), ('192.168.4.10', 1, '192.168.11.11', 2, 500),
             #     ('192.168.11.3', 2, '192.168.4.10', 1, 1), ('192.168.4.10', 1, '192.168.11.3',2, 500),
             #     ('192.168.11.11',2, '192.168.1.10', 1, 1), ('192.168.1.10', 1,'192.168.11.11', 2, 500),
@@ -117,33 +123,19 @@ lista_sw_id ={
 
 mask = '255.255.255.0' #mask = /24 to all the networks in the topology...
 
-
-class L3Switch(app_manager.RyuApp):
+class L3MobilityManager(app_manager.RyuApp):
     OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION]
-    #ip_addrs = ['192.168.4.254','192.168.4.10', '192.168.1.10', '192.168.1.254','192.168.20.254','192.168.20.253','192.168.20.20',
-                #'192.168.2.254', '192.168.2.10', '192.168.11.254','192.168.11.252', '192.168.11.11','192.168.20.11',
-                #'192.168.11.3','192.168.11.1', '10.0.0.2', '10.0.0.1'] # add IP address here
-    
+    #_CONTEXTS = {'stplib': stplib.Stp}
 
-    def __init__(self,dst='ff:ff:ff:ff:ff:ff', src='00:00:00:00:00:00',
-                 ethertype=ether.ETH_TYPE_IP, *args, **kwargs):
-        super(L3Switch, self).__init__(*args, **kwargs)
+    def __init__(self, *args, **kwargs):
+        super(L3MobilityManager, self).__init__(*args, **kwargs)
 
-        self.arp_table = {}
-        self.datapaths = {}
-        
-        self.fields = {'time':'','datapath':'','in-port':'','eth_src':'','eth_dst':'','out-port':'','total_packets':0,'total_bytes':0}
-        self.hw_addr = None
-        self.ip_addrs = []
-        
         self.mac_to_port = {}
         self.ip_to_mac = {}
         #self.hw_addr = {}
         self.L3_mac_to_port = {}
         self.L3_ip_to_mac = {}
         self.queue = {}
-        self.hosts = {}
-        self.switches = []
         self.datapaths = {}
         # Used to keep and track topology changes
         self.topology_api_app = self
@@ -154,30 +146,37 @@ class L3Switch(app_manager.RyuApp):
         self.cookies = {}
         self.cookie_value = 1
         self.prio = 1000
-        self.adjacency = defaultdict(dict)
-        self.datapath_list = {}
-        self.arp_table = {}
-        self.switches = []
-        self.hosts = {}
-        self.multipath_group_ids = {}
-        self.group_ids = []
-        self.adjacency = defaultdict(dict)
-       
         #self.net=nx.DiGraph()
         #Rotas aprendidas para cada um dos routers
 
+     
+    def send_packet_to_controller(self, datapath, msg):
+        ofproto = datapath.ofproto
+        parser = datapath.ofproto_parser
 
-    def get_port_pair_from_link(self, link_to_port, src_dpid, dst_dpid):
-        
-        if (src_dpid, dst_dpid) in link_to_port:
-            return link_to_port[(src_dpid, dst_dpid)]
-        else:
-            
-            self.logger.info("Link from dpid:%s to dpid:%s is not in links" %
-			 (src_dpid, dst_dpid))
-            return None
+        # Get the input port of the packet
+        in_port = msg.match['in_port']
 
+        # Create an output action to send the packet to the controller
+        actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER, ofproto.OFPCML_NO_BUFFER)]
 
+        # Create a flow mod to forward the packet to the controller
+        match = parser.OFPMatch(in_port=in_port)
+        inst = [parser.OFPInstructionActions(ofproto.OFPIT_APPLY_ACTIONS, actions)]
+        mod = parser.OFPFlowMod(datapath=datapath, priority=1, match=match, instructions=inst)
+        datapath.send_msg(mod)
+        self.add_flow(datapath, 1, match, actions)
+        self.send_port_desc_stats_request(datapath)
+
+    #make a switch 'datapath' send packet(msg) to outPort
+    def sendPacket(self, datapath, msg, outPort):
+        ofproto = datapath.ofproto
+        parser = datapath.ofproto_parser
+        actions = [parser.OFPActionOutput(outPort)]
+        outMsg = parser.OFPPacketOut(datapath=datapath, buffer_id=msg.buffer_id, 
+			in_port=msg.in_port, actions=actions)
+        datapath.send_msg(outMsg)
+		
 
     @set_ev_cls(event.EventSwitchEnter)
     def get_topology_data(self, ev):
@@ -191,37 +190,7 @@ class L3Switch(app_manager.RyuApp):
     # def ls(self,obj):
     #     print("\n".join([x for x in dir(obj) if x[0] != "_"]))   
    
-    def add_reactive_flow(self, dp, match, table, priority,out_port):
-        ofp = dp.ofproto
-        ofp_parser = dp.ofproto_parser
-
-        buffer_id = ofp.OFP_NO_BUFFER
-
-        action = ofp_parser.OFPInstructionActions(ofp.OFPIT_APPLY_ACTIONS,
-                                                  [ofp_parser.OFPActionOutput(out_port)])
-        inst = [action]
-
-        mod = ofp_parser.OFPFlowMod(
-            datapath=dp, table_id=table, priority=priority,
-            match=match, instructions=inst
-        )
-        # self.logger.info("Here are flows")
-        # self.logger.info(mod)
-        dp.send_msg(mod)
-
-    def send_packet(self, dp, port, pkt):
-        ofproto = dp.ofproto
-        parser = dp.ofproto_parser
-        pkt.serialize()
-        data = pkt.data
-        action = [parser.OFPActionOutput(port=port)]
-
-        out = parser.OFPPacketOut(
-            datapath=dp, buffer_id=ofproto.OFP_NO_BUFFER,
-            in_port=ofproto.OFPP_CONTROLLER,
-            actions=action, data=data)
-        dp.send_msg(out)
-      
+    
     @set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
     def switch_features_handler(self, ev):
         # Obtain the datapath object and save it
@@ -233,7 +202,10 @@ class L3Switch(app_manager.RyuApp):
         #self.dpids[datapath.id] = datapath
         
         self.logger.info(ev.msg.datapath.address)
-    
+        #address = ev.switch.dp.address
+        #dpid = ev.switch.dp.id
+        #self.logger.info(address)
+        #self.logger.info(dpid)
         print("New switch is waiting configuration and located at ",ev.msg.datapath," and ID is ",ev.msg.datapath.id)
         
         # install table-miss flow entry
@@ -250,12 +222,6 @@ class L3Switch(app_manager.RyuApp):
         self.add_flow(datapath, 1, match, actions)
         self.send_port_desc_stats_request(datapath)
 
-        # Installing static rules to process TCP/UDP and ICMP and ACL
-        dpid = datapath.id  # classifying the switch ID
-        print("switch is connected at datapath.id ", dpid)
-        print("inet.IPPROTO_ICMP ", inet.IPPROTO_ICMP)
-
-       
 
         sw = datapath.id
         if sw in lista_sw_id:
@@ -277,7 +243,7 @@ class L3Switch(app_manager.RyuApp):
                 actions = [parser.OFPActionOutput(r[3])]
                 self.add_flow(datapath, r[4], match, actions)
                 self.send_port_desc_stats_request(datapath)
-
+   
 
      #Adiciona um flow ao dispositivo
     def add_flow(self, datapath, priority, match, actions):
@@ -297,7 +263,6 @@ class L3Switch(app_manager.RyuApp):
         datapath.send_msg(mod)
 
     
-
     def add_flow_best_path(self, datapath, priority, match, actions, buffer_id=None):
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
@@ -327,8 +292,7 @@ class L3Switch(app_manager.RyuApp):
                                     instructions=inst)
         datapath.send_msg(mod) 
 
-    
-
+      
     def send_port_desc_stats_request(self, datapath):
         ofpparser = datapath.ofproto_parser
 
@@ -352,12 +316,12 @@ class L3Switch(app_manager.RyuApp):
 
         for p in ev.msg.body:
             self.L3_mac_to_port[dpid][p.hw_addr] = p.port_no
+            print("Trashhhhhh",p.port_no)
             if p.port_no != 4294967294 and p.port_no in interface_port_to_ip[dpid]:
                 self.L3_ip_to_mac[dpid][interface_port_to_ip[dpid][p.port_no]] = p.hw_addr
-        		
+
         self.logger.info('%d MAC TABLE: %s', dpid, self.L3_mac_to_port[dpid])
         self.logger.info('%d ARP TABLE: %s', dpid, self.L3_ip_to_mac[dpid])
-        
 
     
     @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
@@ -380,11 +344,6 @@ class L3Switch(app_manager.RyuApp):
         pkt = packet.Packet(msg.data)
         eth = pkt.get_protocols(ethernet.ethernet)[0]
         
-        
-        # Add MAC address to port mapping
-        self.mac_to_port.setdefault(datapath.id, {})
-        self.mac_to_port[datapath.id][eth.src] = in_port
-        # Send packet to controller
 
         if eth.ethertype == ether_types.ETH_TYPE_LLDP:
             # ignore lldp packet
@@ -398,7 +357,8 @@ class L3Switch(app_manager.RyuApp):
         print("Destination Mac address is ",dst_mac)
         src_mac = eth.src
         print("Source Mac address is ",src_mac)
-       
+        #dpid = format(datapath.id, "d").zfill(16)
+        dpid = datapath.id
         self.mac_to_port.setdefault(dpid, {})
         print("*-*-*-*-*-*-*-*-*-*-*-* New Packet it during Normal operation -*-*-*-*-*-*-*-*-*-*-")
         print("New packet from switch datapath id ",datapath.id)
@@ -407,29 +367,19 @@ class L3Switch(app_manager.RyuApp):
         #dp.ofproto and dp.ofproto_parser are objects that represent the OpenFlow protocol that Ryu and the switch negotiated.
         print("message is is ", msg)
         ethernet_type=eth.ethertype
-        print("\nEthernet Packet is ",eth)
-        print("Switch port number is ",msg.match['in_port'])
-        
-        if(ethernet_type==0x800):
-                print("ICMP Echo Request or Echo Reply IPv4")
-        elif(ethernet_type==0x806):
-            print("ARP Request or reply for who has IP ... tell ... or reply my ip .... is at mac")
         
 
         self.logger.info("packet in %s %s %s %s", dpid, src_mac, dst_mac, in_port)
 
-        
-        #['00:00:00:00:00:06', '00:00:00:00:00:12', '00:00:00:00:00:01', '00:00:00:00:00:04','10:00:00:00:01:50','60:00:00:00:60:10', '40:00:00:00:04:10']
         if eth.ethertype == ether_types.ETH_TYPE_ARP:
             self.handle_arp(msg, pkt, in_port, src_mac)
-
+        
         if eth.ethertype == ether_types.ETH_TYPE_IP:
             ip_pkt = pkt.get_protocol(ipv4.ipv4)
             src_ip = ip_pkt.src
             dst_ip = ip_pkt.dst
             protocol = ip_pkt.proto
 
-            
         # if ICMP Protocol
             if protocol == in_proto.IPPROTO_ICMP:
                 match = parser.OFPMatch(eth_type=ether_types.ETH_TYPE_IP, ipv4_src=src_ip, ipv4_dst=dst_ip, ip_proto=protocol)
@@ -443,9 +393,7 @@ class L3Switch(app_manager.RyuApp):
             elif protocol == in_proto.IPPROTO_UDP:
                 u = pkt.get_protocol(udp.udp)
                 match = parser.OFPMatch(eth_type=ether_types.ETH_TYPE_IP, ipv4_src=src_ip, ipv4_dst=dst_ip, ip_proto=protocol, udp_src=u.src_port, udp_dst=u.dst_port,)            
-            
-        
-        
+     
             # Check if it's a multicast address, if it's ignore it!
             multi = int(dst_ip[0:dst_ip.find('.')])
             b = bin(multi)
@@ -458,11 +406,9 @@ class L3Switch(app_manager.RyuApp):
 
             if dst_ip in self.ip_to_mac[dpid]:
                 self.logger.info('NEW FLOW ADDED, PLS CHECK FLOW TABLE')
-                self.inject_flow(datapath, src_ip, in_port, dst_ip, self.mac_to_port[dpid][self.ip_to_mac[dpid][dst_ip]], 501)
-                self.inject_flow(datapath,dst_ip, self.mac_to_port[dpid][self.ip_to_mac[dpid][dst_ip]], src_ip, in_port,501)
+                self.inject_flow(datapath, src_ip, in_port, dst_ip, self.mac_to_port[dpid][self.ip_to_mac[dpid][dst_ip]], 503)
+                self.inject_flow(datapath,dst_ip, self.mac_to_port[dpid][self.ip_to_mac[dpid][dst_ip]], src_ip, in_port,503)
                 self.forward_pkt(msg, in_port, src_ip, dst_ip, self.mac_to_port[dpid][self.ip_to_mac[dpid][dst_ip]])
-                
-            
             elif dst_ip in self.L3_ip_to_mac[dpid]:
                 if protocol == in_proto.IPPROTO_ICMP:
                     icmp_pkt = pkt.get_protocol(icmp.icmp)
@@ -473,8 +419,6 @@ class L3Switch(app_manager.RyuApp):
                         # Could be good add a flow to avoid use the controller
                         self.send_icmp(datapath, icmp.ICMP_ECHO_REPLY, echo, dst_ip, self.L3_ip_to_mac[dpid][dst_ip], src_ip, src_mac, in_port)
                         return
-        
-                
             else:
                 if protocol == in_proto.IPPROTO_ICMP:
                     icmp_pkt = pkt.get_protocol(icmp.icmp)
@@ -482,20 +426,11 @@ class L3Switch(app_manager.RyuApp):
                 # Should enqueue the arrived packet here while switch search for the MAC....
                 self.flood_arp(datapath, dst_ip, in_port,src_mac,src_ip,msg)
                 return
-         
-    
-
-    # Member methods you can call to install TCP/UDP/ICMP fwding rules
-    def add_flowentry_rules(self, datapath, ip_proto, ipv4_dst = None,ipv4_src = None, priority = 1, fwd_port = None,inport=None):
-        parser = datapath.ofproto_parser
-        actions = [parser.OFPActionOutput(fwd_port)]
-        match = parser.OFPMatch(eth_type = ether.ETH_TYPE_IP,
-                                ip_proto = ip_proto,
-                                ipv4_dst = ipv4_dst,
-                                ipv4_src = ipv4_src,
-                                in_port=inport)
-        self.add_flow(datapath, priority, match, actions)
-
+         # Flood ARP packets and send other traffic to the controller
+            if dst_mac == 'ff:ff:ff:ff:ff:ff':
+                self.flood_arp(datapath, dst_ip, in_port, src_mac, src_ip, msg)
+            else:
+                self.send_packet_to_controller(datapath, msg)
     # Simple function which, given a path with ports and a datapath, returns the port which that datapath has to use
     # as an output, to allow the packet to travel through the given path.
     
@@ -542,6 +477,7 @@ class L3Switch(app_manager.RyuApp):
             
                 return
 
+            
             elif src_ip in self.queue[dpid]:                
                 self.logger.info('Added to the table: %s -> %s -> %s -> %d', dpid, src_ip, src_mac, in_port)
                 self.update_mac_table(datapath, src_mac, in_port)
@@ -551,8 +487,8 @@ class L3Switch(app_manager.RyuApp):
                     if value == self.queue[dpid][src_ip][0]:
                         mac = key
                         self.logger.info('2NEW FLOW ADDED, PLS CHECK FLOW TABLE2')
-                        self.inject_flow(datapath, src_ip, in_port, dst_ip, value, 501)
-                        self.inject_flow(datapath, dst_ip, value, src_ip, in_port,501)
+                        self.inject_flow(datapath, src_ip, in_port, dst_ip, value, 503)
+                        self.inject_flow(datapath, dst_ip, value, src_ip, in_port,503)
                         #self.logger.info('Forwarding ARP REPLY to %s -> %s in port %d', dst_ip, self.queue[dpid][src_ip][1], value)
                         self.logger.info('Forward pkt from %s(%s) to %s(%s) on port %d', src_ip, mac, dst_ip, self.queue[dpid][src_ip][1], self.queue[dpid][src_ip][0])
                         self.f_pkt(self.queue[dpid][src_ip][3], in_port)
@@ -563,8 +499,8 @@ class L3Switch(app_manager.RyuApp):
 
             else:
                 self.logger.info('WARNING! -> ARP REPLY not REQUESTED! Possible attacker trying to inject flow!')
+                self.logger.info(src_ip)
                 return
-            
 
     def f_pkt(self, queue_msg, out_port):
         datapath = queue_msg.datapath
@@ -625,8 +561,7 @@ class L3Switch(app_manager.RyuApp):
                                   data=data)
         #self.logger.info(out)
         datapath.send_msg(out)
-
-    
+   
     def inject_best_paths(self, topology):
         all_pairs_sp = dict(nx.all_pairs_shortest_path(self.topology))
         for src_dpid in all_pairs_sp:
@@ -653,7 +588,7 @@ class L3Switch(app_manager.RyuApp):
                             actions =[parser.OFPActionSetField(eth_src = src_mac), parser.OFPActionSetField(eth_dst = dst_mac), parser.OFPActionOutput(out_port)]
                             self.add_flow_best_path(datapath = datapath, priority= self.prio, match=match, actions=actions)
                             self.prio = self.prio+100        
-    
+
     def get_values(self, msg):
         dpid = msg[msg.find('dpid=')+len('dpid='):msg.rfind(', port_no')]
         port_no = msg[msg.find('port_no=')+len('port_no='):msg.rfind(', ')]
@@ -669,7 +604,6 @@ class L3Switch(app_manager.RyuApp):
             state = 'INVALID'
 
         return [dpid, port_no, state]
-
     
     @handler.set_ev_cls(event.EventSwitchEnter)
     def switch_enter_handler(self, ev):
@@ -683,7 +617,6 @@ class L3Switch(app_manager.RyuApp):
         self.logger.info(self.topology.nodes)
         #self.inject_best_paths(self.topology)
  
-
     @handler.set_ev_cls(event.EventSwitchLeave)
     def switch_leave_handler(self, ev):
         msg = str(ev)
@@ -704,26 +637,26 @@ class L3Switch(app_manager.RyuApp):
 
     @handler.set_ev_cls(event.EventPortAdd)
     def port_add_handler(self, ev):
-        msg = str(ev)
-        #self.logger.info('Port add event -> %s',msg)
-        dpid, port_no, state = self.get_values(msg)
-        dpid = int(dpid)
-        self.logger.info('PORT ADD EVENT -> dpid = %s, port_no = %s, state = %s', dpid, port_no, state)
-        # Adds attr to node
-        self.topology.nodes[dpid]['attr_dict'][port_no] = interface_port_to_ip[dpid][port_no]
-        self.logger.info(nx.get_node_attributes(self.topology, 'attr_dict'))
-        self.inject_best_paths(self.topology)
+         msg = str(ev)
+         #self.logger.info('Port add event -> %s',msg)
+         dpid, port_no, state = self.get_values(msg)
+         dpid = int(dpid)
+         self.logger.info('PORT ADD EVENT -> dpid = %s, port_no = %s, state = %s', dpid, port_no, state)
+         # Adds attr to node
+         self.topology.nodes[dpid]['attr_dict'][port_no] = interface_port_to_ip[dpid][port_no]
+         self.logger.info(nx.get_node_attributes(self.topology, 'attr_dict'))
+         self.inject_best_paths(self.topology)
 
     @handler.set_ev_cls(event.EventPortDelete)
     def port_delete_handler(self, ev):
-        msg = str(ev)
-        dpid, port_no, state = self.get_values(msg)
-        dpid = int(dpid)
-        self.logger.info('PORT DELETE EVENT -> dpid = %s, port_no = %s, state = %s', dpid, port_no, state)
-        # Deletes port from attr of the node
-        self.topology.nodes[dpid]['attr_dict'].pop(port_no, None)
-        self.logger.info(nx.get_node_attributes(self.topology, 'attr_dict'))
-        self.inject_best_paths(self.topology)
+         msg = str(ev)
+         dpid, port_no, state = self.get_values(msg)
+         dpid = int(dpid)
+         self.logger.info('PORT DELETE EVENT -> dpid = %s, port_no = %s, state = %s', dpid, port_no, state)
+         # Deletes port from attr of the node
+         self.topology.nodes[dpid]['attr_dict'].pop(port_no, None)
+         self.logger.info(nx.get_node_attributes(self.topology, 'attr_dict'))
+         self.inject_best_paths(self.topology)
 
     @handler.set_ev_cls(event.EventPortModify)
     def port_modify_handler(self, ev):
@@ -744,7 +677,6 @@ class L3Switch(app_manager.RyuApp):
         self.logger.info('TOPOLOGY UPDATED => %s', nx.get_node_attributes(self.topology, 'attr_dict'))
         self.inject_best_paths(self.topology)
 
-    
     @handler.set_ev_cls(event.EventLinkAdd)
     def link_add_handler(self, ev):
         msg = str(ev)
@@ -768,12 +700,9 @@ class L3Switch(app_manager.RyuApp):
         self.logger.info(self.topology.nodes)
         self.logger.info(nx.get_node_attributes(self.topology, 'attr_dict'))
         self.inject_best_paths(self.topology)
-        
-
 
         #self.logger.info('LINK ADD EVENT -> dpid = %s, port_no = %s, state = %s', dpid, port_no, state)
 
-    
     def remove_flows(self, datapath):
         """Removing all flow entries."""
         dpid = datapath.id
@@ -785,7 +714,6 @@ class L3Switch(app_manager.RyuApp):
             #self.logger.info("deleting all flow entries in table %s", table_id)
             datapath.send_msg(flow_mod)
     
-
     def remove_table_flows(self, datapath, match, instructions, cookie):
         """Create OFP flow mod message to remove flows from table."""
         ofproto = datapath.ofproto
@@ -800,7 +728,6 @@ class L3Switch(app_manager.RyuApp):
                                                     instructions = instructions)
         return flow_mod
 
-
     # def firewall(self):
     #     priority1=65000
     #     priority2=64000
@@ -814,7 +741,6 @@ class L3Switch(app_manager.RyuApp):
     #     match = self.datapaths[2].ofproto_parser.OFPMatch(in_port = 2, eth_type = ether_types.ETH_TYPE_IP, ip_proto=6, ipv4_src= ('192.168.4.10', '255.255.255.0'), ipv4_dst = ('192.168.11.11', '255.255.255.0'))
     #     actions = [self.datapaths[2].ofproto_parser.OFPActionSetField(eth_src = '00:00:00:00:00:04'), self.datapaths[2].ofproto_parser.OFPActionSetField(eth_dst = '00:00:00:00:00:06'), self.datapaths[2].ofproto_parser.OFPActionOutput(1)]
     #     self.add_flow(self.datapaths[2], priority1, match, actions)
-
 
     def inject_flow(self, datapath, src_ip, in_port, dst_ip, out_port, priority):
         src_ip_net = src_ip[0:src_ip.rfind('.')+1]+'0'
@@ -882,7 +808,6 @@ class L3Switch(app_manager.RyuApp):
         dpid = datapath.id
         self.mac_to_port[dpid][mac] = port
         
-
     def same_network(self, src_ip, dst_ip, mask):
         a = ip_interface(src_ip+mask)
         b = ip_interface(dst_ip+mask)
@@ -891,22 +816,7 @@ class L3Switch(app_manager.RyuApp):
             return True
         else:
             return False
-
-    
-    @set_ev_cls(stplib.EventTopologyChange, MAIN_DISPATCHER)
-    def _topology_change_handler(self, ev):
-        dp = ev.dp
-        dpid_str = dpid_lib.dpid_to_str(dp.id)
-        msg = 'Receive topology change event. Flush MAC table.'
-        self.logger.debug("[dpid=%s] %s", dpid_str, msg)
-
-        if dp.id in self.mac_to_port:
-            self.delete_flow(dp)
-            del self.mac_to_port[dp.id]
-    """
-    The change notification event (stplib.EventPortStateChange) of the port status is received and the debug log
-    of the port status is output.
-    """
+   
     @set_ev_cls(stplib.EventPortStateChange, MAIN_DISPATCHER)
     def _port_state_change_handler(self, ev):
         dpid_str = dpid_lib.dpid_to_str(ev.dp.id)
@@ -917,8 +827,5 @@ class L3Switch(app_manager.RyuApp):
                     stplib.PORT_STATE_FORWARD: 'FORWARD'}
         self.logger.debug("[dpid=%s][port=%d] state=%s",
                           dpid_str, ev.port_no, of_state[ev.port_state])
-    
-
+        
     #####TESTANDO>>>>APAGAR DEPOIS 
-
-   
